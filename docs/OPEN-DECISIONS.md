@@ -12,5 +12,7 @@ These items need a separate design or compatibility decision. Continue independe
 
 ## Deployment and identity
 
+- Room creation currently persists the host identity/key in browser storage after creating the room. If storage fails at that point, recovery versus rollback needs a deliberate design; a failed client step must not silently create repeated rooms on retries. Do not invent server-side ownership recovery in the UI-only work.
+
 - Public hosting and WakiChat's identity recovery are outside the current trusted-local-server setup. Decide authentication, authorization, and client compatibility before exposing the service remotely.
 - The production server remains stopped until explicitly requested otherwise. Existing room data must be preserved.

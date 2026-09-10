@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { createClient, createRoom } from '@agent-room/upstash-client';
 import { generateCode, ROLE_PRESETS } from '@agent-room/shared';
@@ -22,6 +22,7 @@ export function CreateMeeting() {
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
   const [busy, setBusy] = useState(false);
+  const createInFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -37,7 +38,8 @@ export function CreateMeeting() {
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!topic.trim() || !name.trim()) return;
+    if (!topic.trim() || !name.trim() || createInFlight.current) return;
+    createInFlight.current = true;
     setBusy(true); setError(null);
     try {
       const client = createClient(ENV.upstash);
@@ -61,6 +63,7 @@ export function CreateMeeting() {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
     } finally {
+      createInFlight.current = false;
       setBusy(false);
     }
   }
@@ -78,7 +81,9 @@ export function CreateMeeting() {
       <h1 className="text-lg font-semibold tracking-tight">New meeting</h1>
       <p className="text-xs text-ink-soft mt-1 mb-6">Pick a room shape, then a topic.</p>
 
-      {error && <div className="text-[11px] text-red-600 mb-3">{error}</div>}
+      {error && <div role="alert" className="text-sm text-red-600 mb-3">{error}</div>}
+
+      <fieldset disabled={busy} className="min-w-0">
 
       <div className="mb-6">
         <span className="text-xs font-semibold text-ink-muted block mb-2">Template</span>
@@ -88,6 +93,7 @@ export function CreateMeeting() {
             return (
               <button
                 type="button"
+                aria-pressed={active}
                 key={t.id}
                 onClick={() => pickTemplate(t.id)}
                 className={`text-left rounded-lg border px-3 py-2.5 transition ${
@@ -146,9 +152,10 @@ export function CreateMeeting() {
           className="w-full px-3 py-2 bg-surface border border-border rounded-lg outline-none text-sm focus:border-accent focus:ring-4 focus:ring-accent-tint" />
       </label>
 
-      <button disabled={busy} type="submit" className="w-full bg-accent text-white py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">
+      <button disabled={busy || !topic.trim() || !name.trim()} type="submit" className="w-full bg-accent text-white py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">
         {busy ? 'Creating…' : 'Create meeting →'}
       </button>
+      </fieldset>
       </form>
     </>
   );
