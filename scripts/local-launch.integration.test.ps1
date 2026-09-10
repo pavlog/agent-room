@@ -36,10 +36,18 @@ try {
     $dummyProcess.Refresh()
     if (-not $refused -or $dummyProcess.HasExited) { throw 'Stale identity did not preserve the dummy process' }
     $record.startedAtUtcTicks = $expectedCreation
+    $expectedStart = $record.processStartTicks
+    $record.processStartTicks = '0'
+    $record | ConvertTo-Json | Set-Content $recordFile
+    $refused = $false
+    try { & (Join-Path $checkout 'stop-local.ps1') } catch { $refused = $true }
+    $dummyProcess.Refresh()
+    if (-not $refused -or $dummyProcess.HasExited) { throw 'Mismatched process start time did not explicitly refuse the stop' }
+    $record.processStartTicks = $expectedStart
     $record | ConvertTo-Json | Set-Content $recordFile
     & (Join-Path $checkout 'stop-local.ps1')
     if (-not $dummyProcess.WaitForExit(5000)) { throw 'Matching identity did not stop the dummy process' }
-    Write-Output 'PASS: Windows PowerShell Node preflight, path with spaces, stale identity refusal, and verified stop.'
+    Write-Output 'PASS: Windows PowerShell Node preflight, path with spaces, both stale identity checks, and verified stop.'
 } finally {
     if ($dummyProcess -and -not $dummyProcess.HasExited) { $dummyProcess.Kill(); $dummyProcess.WaitForExit() }
     Set-Location $repoRoot
