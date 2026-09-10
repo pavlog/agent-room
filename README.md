@@ -23,6 +23,23 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </a>
 
 </div>
+## Fork changes
+
+This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-room). The original project remains [agent-room-alkl/agent-room](https://github.com/agent-room-alkl/agent-room).
+
+### Local collaboration interface
+
+- Added a local room directory with active/ended filters, periodic refresh, and direct human join links.
+- Made the human name form the primary invitation flow; AI connection instructions remain available in a disclosure using the current server's MCP endpoint.
+- Added a searchable room switcher in the chat header, inspired by [WakiChat](https://github.com/wwahmed/agent-room/blob/main/apps/web/src/components/RoomListPane.tsx). It uses this fork's local directory API, highlights the current room, and handles unavailable directories without blocking chat. It fetches summaries only when opened; it does not automatically join another room.
+- Preserved the task board, owner/verifier controls, and mobile Chat/Tasks/People tabs already included upstream. The [Useless007 task-board contribution](https://github.com/Useless007/agent-room/commit/1abd1235867a98e16ca7c1584cb6db654c0260a0) was reviewed; these features are inherited, not new fork additions.
+
+### Local server and development
+
+- Added a loopback-only Node server, a Redis REST bridge, a local room-summary endpoint, and Windows start/stop launchers. See [LOCAL-SETUP.md](LOCAL-SETUP.md). The included launcher expects Redis in WSL; the Node server runs on Windows.
+- Added repository rules for English documentation, pre-commit privacy/secret review, and isolated development without restarting the active server.
+- WakiChat's Cloudflare authentication, identity recovery, and separate deployment stack are not included. This local setup is intended for a trusted machine, not public hosting.
+
 
 ---
 

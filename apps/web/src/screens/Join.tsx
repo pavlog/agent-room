@@ -6,7 +6,6 @@ import { isValidCode, CODE_LEN, ROLE_PRESETS } from '@agent-room/shared';
 import { ENV } from '../env.js';
 import { CodeInput } from '../components/CodeInput.js';
 import { AgentRoomLogo } from '../components/AgentRoomLogo.js';
-import { AgentJoinQuickstart } from '../components/AgentJoinQuickstart.js';
 import { AgentJoinNotice } from '../components/AgentJoinNotice.js';
 import { colorForName, initialsFor } from '../lib/colors.js';
 
@@ -24,14 +23,17 @@ export function Join() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    setRoom(null);
     if (raw.length !== CODE_LEN) { setRoom(null); return; }
     const dashed = withDashes(raw);
     if (!isValidCode(dashed)) { setErr('Invalid code'); return; }
     setErr(null);
     const client = createClient(ENV.upstash);
     getRoom(client, dashed)
-      .then(setRoom)
-      .catch(e => setErr(e instanceof RoomNotFoundError ? 'Room not found' : String(e)));
+      .then(value => { if (!cancelled) setRoom(value); })
+      .catch(e => { if (!cancelled) setErr(e instanceof RoomNotFoundError ? 'Room not found' : String(e)); });
+    return () => { cancelled = true; };
   }, [raw]);
 
   async function join() {
@@ -90,10 +92,9 @@ export function Join() {
         </div>
       </div>
       <div className="max-w-md mx-auto mt-10 p-8 bg-surface border border-border rounded-xl shadow-card">
-      <h1 className="text-lg font-semibold tracking-tight">Join a meeting</h1>
-      <p className="text-xs text-ink-soft mt-1 mb-6">Enter the 9-character code from your invite.</p>
-
-      <AgentJoinNotice code={raw.length === CODE_LEN ? withDashes(raw) : undefined} />
+      <Link to="/" className="text-sm text-accent hover:underline">← All rooms</Link>
+      <h1 className="mt-4 text-xl font-semibold tracking-tight">Join the conversation</h1>
+      <p className="text-sm text-ink-soft mt-2 mb-6">For people: enter your name and chat with the agents in your browser. No installation needed.</p>
 
       <div className="mb-4">
         <CodeInput value={raw} onChange={setRaw} />
@@ -111,11 +112,10 @@ export function Join() {
             </div>
           </div>
 
-          <AgentJoinQuickstart roomCode={room.code} />
-
+          <form onSubmit={e => { e.preventDefault(); void join(); }}>
           <label className="block mb-3">
             <span className="text-[11px] font-semibold text-ink-muted block mb-1">Your name</span>
-            <input value={name} onChange={e => setName(e.target.value)}
+            <input value={name} onChange={e => setName(e.target.value)} required autoComplete="nickname" placeholder="How should we call you?"
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg outline-none text-sm focus:border-accent focus:ring-4 focus:ring-accent-tint" />
           </label>
           <label className="block mb-5">
@@ -132,11 +132,21 @@ export function Join() {
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg outline-none text-sm focus:border-accent focus:ring-4 focus:ring-accent-tint" />
           </label>
 
-          <button disabled={busy} onClick={join} className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50">
-            {busy ? 'Joining…' : 'Join meeting →'}
+          <button type="submit" disabled={busy || !name.trim() || room.status === 'ended'} className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50">
+            {room.status === 'ended' ? 'This meeting has ended' : busy ? 'Joining…' : 'Enter chat →'}
           </button>
+          </form>
+          {room.status === 'ended' && <Link to={`/r/${room.code}/report`} className="mt-3 block text-sm text-accent">View meeting report →</Link>}
         </>
       )}
+      <details className="mt-6 border-t border-border pt-4">
+        <summary className="cursor-pointer text-sm font-semibold text-ink-muted">Connect an AI agent instead</summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-sm">Connect your agent to this server’s MCP endpoint:</p>
+          <code className="block break-all rounded bg-surface-soft p-3 text-xs">{window.location.origin}/mcp</code>
+          <AgentJoinNotice code={raw.length === CODE_LEN ? withDashes(raw) : undefined} />
+        </div>
+      </details>
       </div>
     </>
   );

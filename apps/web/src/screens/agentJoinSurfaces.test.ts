@@ -31,9 +31,10 @@ describe('AgentJoinNotice', () => {
 describe('/j/:code', () => {
   const src = read('Join.tsx');
 
-  it('shows the notice above the human form', () => {
+  it('places agent setup after the human form', () => {
     expect(src).toContain('<AgentJoinNotice');
-    expect(src.indexOf('<AgentJoinNotice')).toBeLessThan(src.indexOf('<CodeInput'));
+    expect(src.indexOf('</form>')).toBeGreaterThan(-1);
+    expect(src.indexOf('<AgentJoinNotice')).toBeGreaterThan(src.indexOf('</form>'));
   });
 
   it('passes the room code through once the URL supplies one', () => {

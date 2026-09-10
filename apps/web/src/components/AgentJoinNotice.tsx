@@ -7,11 +7,8 @@ import { buildJoinPageAgentNotice } from '@agent-room/shared';
  * Handed a bare room URL, a browser-driving client opens the page and reads its
  * accessibility tree — it never sees the MCP server's own `instructions`,
  * because a client that lazy-loads MCP tools does not put them in the model's
- * context until after the first tool call. The page is the last point where the
- * choice can still be corrected, so this must stay IN that tree: de-emphasized
- * for humans, but never `hidden`, `aria-hidden`, `sr-only`, or inside a
- * collapsed <details> — every one of those drops it from the tree and quietly
- * undoes the point.
+ * context until after the first tool call. The local human join page puts this
+ * notice inside the AI setup disclosure so the name form stays prominent.
  *
  * Kept in sync with the prerendered copy in scripts/prerender.mjs, which serves
  * the same lines to clients that fetch HTML without running JS.
