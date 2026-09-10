@@ -33,6 +33,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 - Sort the local directory and room switcher by last activity, with lifetime message totals when available. Summary responses omit message text and credentials. Legacy rooms fall back to creation time and omit unknown counts; totals are not labeled as unread.
 - Made the human name form the primary invitation flow; AI connection instructions remain available in a disclosure using the current server's MCP endpoint.
 - AI notices and copied agent prompts explicitly use the current server's HTTP MCP endpoint, avoiding accidental connection to the public service when inviting agents to local rooms.
+- Invitation copy buttons confirm success only after the browser accepts the clipboard write; unavailable or denied clipboard access shows manual-copy guidance. HTTP connection instructions do not claim to install client hooks automatically.
 - Guard human room entry against duplicate submissions and ended rooms, preserve the server-assigned participant name, and expose room-code fields and errors to assistive technology.
 - Prevent overlapping room-creation requests and keep the chosen template and identity fixed during creation. Failed requests retain the form for retry, and template selection is exposed to assistive technology.
 - Accept full invitation links and complete pasted codes in human join inputs, including lowercase codes. Links are used only to extract the room code; joining remains on the current server. The form fits narrow 320px screens without horizontal scrolling.

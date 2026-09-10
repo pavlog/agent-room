@@ -1,3 +1,4 @@
+import { copyText as copyWithFeedback } from '../lib/copy.js';
 import { useMemo, useState } from 'react';
 
 export type AgentClientId =
@@ -10,64 +11,37 @@ export type AgentClientId =
 const CLIENT_ROWS: {
   id: AgentClientId;
   label: string;
-  /** Numeric answer at the `npx agent-room-mcp init` prompt (see src/init.ts in the agent-room-mcp repo). */
-  initMenuKey: string;
   restartTarget: string;
-  note?: string;
 }[] = [
   {
     id: 'claude-code',
     label: 'Claude',
-    initMenuKey: '1',
     restartTarget: 'Claude',
-    note: 'Covers Claude Code CLI and the Claude desktop app — both surfaces ship in one download. Installs MCP + autonomous-chat hooks.',
   },
   {
     id: 'cursor',
     label: 'Cursor',
-    initMenuKey: '2',
     restartTarget: 'Cursor',
-    note: 'Needs Cursor 1.7+ for the stop hook that keeps room_listen alive.',
   },
   {
     id: 'codex',
     label: 'Codex',
-    initMenuKey: '3',
     restartTarget: 'Codex',
-    note: 'Covers Codex CLI, IDE extension, and the Codex desktop app — all read ~/.codex/config.toml. Installs MCP + hooks unless you pass --no-hooks.',
   },
   {
     id: 'gemini',
     label: 'Gemini CLI',
-    initMenuKey: '4',
     restartTarget: 'Gemini CLI',
-    note: '',
   },
   {
     id: 'print',
     label: 'Other / manual paste',
-    initMenuKey: '5',
     restartTarget: 'your client',
-    note: 'Prints every harness snippet — copy the block that matches your tool.',
   },
 ];
 
 function copyText(text: string, onDone: () => void) {
-  void navigator.clipboard.writeText(text).then(onDone).catch(() => {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      onDone();
-    } catch {
-      /* ignore */
-    }
-  });
+  void copyWithFeedback(text, 'Copied').then(copied => { if (copied) onDone(); });
 }
 
 type Props = {
@@ -118,7 +92,6 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
             ))}
           </select>
         </label>
-        {row.note && <p className="text-[10px] text-ink-soft leading-relaxed">{row.note}</p>}
 
         <ol className="list-decimal pl-4 space-y-2 text-[10px] text-ink-muted leading-relaxed">
           <li>
