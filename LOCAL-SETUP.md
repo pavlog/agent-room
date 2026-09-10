@@ -6,6 +6,23 @@ Local setup for https://github.com/pavlog/agent-room. Run the commands from your
 - MCP endpoint: http://localhost:5173/mcp
 - Health check: http://localhost:5173/health
 
+## First installation
+
+Use Node.js 22 or newer and npm on Windows. The included launcher also requires the `Ubuntu-22.04` WSL distribution with `redis-server` and `redis-cli` installed. In that distribution, install Redis with `sudo apt-get update` followed by `sudo apt-get install redis-server`. This does not install or start the Windows application.
+
+From a fresh checkout, run:
+
+```powershell
+npm run setup:local
+npm ci
+npm run build:ordered
+.\start.bat
+```
+
+`setup:local` generates a random credential shared by the server and browser, writes both ignored environment files, and never prints the credential. It refuses to run if either file already exists; it does not rotate an existing installation's credentials. For manual configuration, the server requires `LOCAL_REDIS_URL=redis://127.0.0.1:6389`, `UPSTASH_REDIS_REST_URL=http://127.0.0.1:5173/redis`, and a random `UPSTASH_REDIS_REST_TOKEN`. The browser requires the same REST URL and token under `VITE_UPSTASH_REDIS_REST_URL` and `VITE_UPSTASH_REDIS_REST_TOKEN`. Rebuild the web app after changing those browser settings.
+
+Do not copy someone else's environment files or commit generated settings. The setup command does not start services or connect to Redis.
+
 The home page lists local rooms, refreshes every 10 seconds, and hides ended rooms by default. The authenticated `/api/local/rooms` endpoint returns room summaries only. Human join links show the name form first; AI setup is in a collapsed disclosure using this server's MCP URL. The directory is provided by `scripts/local-server.mjs`, not the upstream Vercel deployment.
 
 Run `./start-local.ps1` from PowerShell to start the service in the background. Run `./stop-local.ps1` to stop the web/MCP process. The launcher checks whether the service is already running. Start it again after restarting Windows; no Windows startup task was installed.
