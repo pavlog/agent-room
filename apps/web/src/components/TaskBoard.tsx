@@ -81,7 +81,7 @@ const CTRL = 'min-h-10 sm:min-h-8 rounded-lg px-2.5 text-[13px] sm:text-xs font-
 const FIELD = 'w-full min-h-10 rounded-lg border border-border bg-white px-3 text-[15px] sm:text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:opacity-60';
 
 export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExport, reportBusy, onExportReport, onMention, taskBoard }: Props) {
-  const { board, loaded, busy, run } = taskBoard;
+  const { board, loaded, busy, error, reload, run } = taskBoard;
   const [composing, setComposing] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
 
@@ -96,7 +96,7 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
           <div className="min-w-0">
             <h2 className="text-sm font-semibold text-ink">Tasks</h2>
             <p className="text-[11px] text-ink-soft">
-              {!loaded ? 'Loading board' : open.length === 0 && closed.length === 0
+              {error && !board ? 'Tasks unavailable' : !loaded ? 'Loading board' : open.length === 0 && closed.length === 0
                 ? 'No tasks yet'
                 : `${open.length} open · ${closed.length} closed`}
             </p>
@@ -107,6 +107,10 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
             </span>
           )}
         </div>
+        {error && <div role="alert" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p>{error}</p>
+          <button type="button" onClick={() => void reload()} className="mt-1 min-h-11 font-semibold underline">Retry</button>
+        </div>}
         {!ended && (
           <button
             type="button"
@@ -137,6 +141,8 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4">
         {!loaded ? (
           <BoardSkeleton />
+        ) : error && !board ? (
+          <p className="text-sm text-ink-muted">Check your connection and retry to load the task board.</p>
         ) : tasks.length === 0 ? (
           <EmptyBoard hasAgents={agents.length > 0} />
         ) : (

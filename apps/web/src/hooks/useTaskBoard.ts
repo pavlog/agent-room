@@ -15,6 +15,7 @@ export function useTaskBoard(code: string) {
   const [board, setBoard] = useState<TaskBoard | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const clientRef = useRef(createClient(ENV.upstash));
   const busyRef = useRef(false);
 
@@ -22,17 +23,25 @@ export function useTaskBoard(code: string) {
   // that resolves after the switch belongs to the old room, and two polls can
   // resolve out of order, so a stale result is dropped rather than written.
   const epochRef = useRef(0);
+  const requestRef = useRef(0);
+  const settledRef = useRef(0);
 
   const reload = useCallback(async () => {
     const epoch = epochRef.current;
+    const request = ++requestRef.current;
+    const isCurrent = () => epoch === epochRef.current && request >= settledRef.current;
     try {
       const next = await getTaskBoard(clientRef.current, code);
-      if (epoch !== epochRef.current) return;
+      if (!isCurrent()) return;
+      settledRef.current = request;
       setBoard(next);
+      setError(null);
     } catch {
-      // Leave the last good board on screen; the next poll retries.
+      if (!isCurrent()) return;
+      settledRef.current = request;
+      setError('Could not refresh tasks. Displayed tasks may be out of date.');
     } finally {
-      if (epoch === epochRef.current) setLoaded(true);
+      if (isCurrent()) setLoaded(true);
     }
   }, [code]);
 
@@ -40,6 +49,7 @@ export function useTaskBoard(code: string) {
     epochRef.current += 1;
     setBoard(null);
     setLoaded(false);
+    setError(null);
     let timer: ReturnType<typeof setInterval> | null = null;
 
     const start = (slow: boolean) => {
@@ -53,6 +63,7 @@ export function useTaskBoard(code: string) {
     document.addEventListener('visibilitychange', onVis);
     start(document.hidden);
     return () => {
+      epochRef.current += 1;
       document.removeEventListener('visibilitychange', onVis);
       stop();
     };
@@ -92,5 +103,5 @@ export function useTaskBoard(code: string) {
     }
   }, [reload]);
 
-  return { board, loaded, busy, reload, run };
+  return { board, loaded, busy, error, reload, run };
 }

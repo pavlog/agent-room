@@ -33,6 +33,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 - Made the human name form the primary invitation flow; AI connection instructions remain available in a disclosure using the current server's MCP endpoint.
 - Added a searchable room switcher in the chat header, inspired by [WakiChat](https://github.com/wwahmed/agent-room/blob/main/apps/web/src/components/RoomListPane.tsx). It uses this fork's local directory API, highlights the current room, and handles unavailable directories without blocking chat. It fetches summaries only when opened; it does not automatically join another room.
 - Preserved the task board, owner/verifier controls, and mobile Chat/Tasks/People tabs already included upstream. The [Useless007 task-board contribution](https://github.com/Useless007/agent-room/commit/1abd1235867a98e16ca7c1584cb6db654c0260a0) was reviewed; these features are inherited, not new fork additions.
+- Made task refresh failures visible with a retry action and retained the last successful board. Older responses cannot overwrite newer task data, and requests completing after room changes or unmount are ignored.
 
 ### Local server and development
 
