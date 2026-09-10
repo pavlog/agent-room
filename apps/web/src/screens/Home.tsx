@@ -21,6 +21,11 @@ export function Home() {
   const reactivationPending = useRef(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const deletedCodes = useRef(new Set<string>());
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   async function removeRoom(roomCode: string) {
     if (reactivationPending.current) return;
     if (!window.confirm(`Permanently delete room ${roomCode}, including its messages, tasks, and report? This cannot be undone. Uploaded files in external storage are not removed.`)) return;
@@ -47,12 +52,12 @@ export function Home() {
     setReactivating(roomCode);
     try {
       await reactivateRoom(createClient(ENV.upstash), roomCode);
-      navigate(`/j/${roomCode}`);
+      if (mounted.current) navigate(`/j/${roomCode}`);
     } catch {
-      setError('Could not reactivate the room. It may have expired; refresh the list and try again.');
+      if (mounted.current) setError('Could not reactivate the room. It may have expired; refresh the list and try again.');
     } finally {
       reactivationPending.current = false;
-      setReactivating(null);
+      if (mounted.current) setReactivating(null);
     }
   }
   useEffect(() => {
