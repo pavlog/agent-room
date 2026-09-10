@@ -51,6 +51,8 @@ export function Room() {
   const { room, messages, error, sendMessage, refreshRoom, forceRefresh } = useRoom(code, self?.name ?? '');
   const { text, setText, saved: draftSaved } = useRoomDraft(code, self?.name ?? '');
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
+  const [sending, setSending] = useState(false);
+  const sendInFlight = useRef(false);
   const [attachBusy, setAttachBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [modeBusy, setModeBusy] = useState(false);
@@ -60,6 +62,16 @@ export function Room() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
+
+  useEffect(() => {
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!sendInFlight.current && !attachBusy && attachments.length === 0 && (!text || draftSaved)) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [attachBusy, attachments.length, text, draftSaved]);
 
   // Auto-grow the textarea: shrink to min, then expand to scrollHeight up to max.
   // Runs after every value change (typed, pasted, Draft injected, voice transcript).
@@ -550,7 +562,9 @@ export function Room() {
 
   async function send() {
     const body = text.trim();
-    if ((!body && attachments.length === 0) || ended) return;
+    if ((!body && attachments.length === 0) || ended || sendInFlight.current) return;
+    sendInFlight.current = true;
+    setSending(true);
     const msg: Message = {
       id: Date.now(),
       type: 'msg',
@@ -573,6 +587,9 @@ export function Room() {
       // A user may already be writing the next message while this send fails.
       setText(current => current ? `${body}\n\n${current}` : body);
       setAttachments(current => [...attachments, ...current.filter(item => !attachments.some(sent => sent.id === item.id))]);
+    } finally {
+      sendInFlight.current = false;
+      setSending(false);
     }
   }
 
@@ -691,6 +708,10 @@ export function Room() {
         <header className="px-3.5 py-2.5 sm:px-4 sm:py-3 border-b border-border-faint flex justify-between items-center bg-surface shrink-0">
           <div className="min-w-0 flex items-center gap-2.5 sm:gap-3">
             <RoomSwitcher currentCode={code} beforeNavigate={() => {
+              if (sendInFlight.current) {
+                void import('../components/Toast.js').then(({ showToast }) => showToast('Wait for the current message to finish sending before switching rooms.'));
+                return false;
+              }
               if (attachBusy || attachments.length > 0) return window.confirm('Unsent attachments will not be restored when you return. Leave this room?');
               if (text && !draftSaved) return window.confirm('This browser could not save your draft. Leave this room and discard it?');
               return true;
@@ -1245,10 +1266,10 @@ export function Room() {
                     </div>
                     <button
                       onClick={send}
-                      disabled={!text.trim() && attachments.length === 0}
+                      disabled={sending || (!text.trim() && attachments.length === 0)}
                       className="min-h-[40px] sm:min-h-[36px] min-w-[78px] sm:min-w-[64px] bg-accent text-white px-5 sm:px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5"
                     >
-                      <span>Send</span>
+                      <span>{sending ? 'Sending…' : 'Send'}</span>
                       <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
                         <path d="M1.5 1.5l13 6.5-13 6.5 2-6.5-2-6.5zm3.2 6.5h5.8-5.8z" />
                       </svg>
