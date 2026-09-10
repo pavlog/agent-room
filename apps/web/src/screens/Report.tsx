@@ -211,20 +211,14 @@ function CreateYourOwnCTA({ report }: { report: RoomReport }) {
 // "Made with Agent Room" credit + next-step nudge at the bottom of the
 // report — the open-source equivalent of the "Made with Notion" footer.
 function ReportFooter({ report }: { report: RoomReport }) {
-  // The room has a 24h TTL on the server (Redis EX), but exported reports
-  // currently share that TTL. Until we ship persisted reports, surface
-  // the practical ceiling so the user knows when this URL stops working.
-  const expiresAt = report.exportedAt + 24 * 60 * 60 * 1000;
-  const hoursLeft = Math.max(0, Math.round((expiresAt - Date.now()) / (60 * 60 * 1000)));
-
   return (
     <section className="bg-white border border-border rounded-xl p-6 text-center">
-      <div className="text-[11px] uppercase tracking-widest font-semibold text-ink-faint mb-2">Exported report · expires in {hoursLeft}h</div>
+      <div className="text-[11px] uppercase tracking-widest font-semibold text-ink-faint mb-2">Exported report · {new Date(report.exportedAt).toLocaleDateString()}</div>
       <p className="text-base font-semibold text-ink mb-1">
         Made with <a href="https://www.agent-room.com" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">Agent Room</a>
       </p>
       <p className="text-sm text-ink-soft max-w-md mx-auto mb-5 leading-relaxed">
-        Self-host the open-source room protocol, or create a fresh room and keep working from the same flow.
+        New reports are kept for 30 days after export. Older reports may expire sooner; download a copy to keep it.
       </p>
       <div className="flex flex-col sm:flex-row gap-2 justify-center">
         <Link

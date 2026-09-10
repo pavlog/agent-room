@@ -636,7 +636,7 @@ const CORE_TOOLS: ToolDef[] = [
   },
   {
     name: 'room_end',
-    description: 'End the meeting (host-only; pass the hostKey from room_create). The room becomes read-only; room_admin action="reactivate" can revive it within 24h.',
+    description: 'End the meeting (host-only; pass the hostKey from room_create). The room becomes read-only; room_admin action="reactivate" can revive it within 30 days.',
     inputSchema: {
       type: 'object',
       required: ['code', 'name'],
@@ -932,7 +932,7 @@ export async function callTool(
         return ok({ error: 'host_name_taken', hint: 'That name is reserved for the room\'s host. Pick a different display name.' });
       }
       if (e.code === 'RoomNotFoundError') {
-        return ok({ error: 'room_not_found', hint: 'No room with that code (rooms expire 24h after creation). Double-check the code.' });
+        return ok({ error: 'room_not_found', hint: 'No room with that code (rooms expire 30 days after creation). Double-check the code.' });
       }
       if (e.code === 'NotParticipantError') {
         return ok({ error: 'not_participant', hint: `${e.message} Call room_join first.` });

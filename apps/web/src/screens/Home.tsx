@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { parseRoomCode } from '@agent-room/shared';
+import { createClient, reactivateRoom } from '@agent-room/upstash-client';
 import { TopNav } from '../components/TopNav.js';
 import { ENV } from '../env.js';
 
@@ -16,6 +17,22 @@ export function Home() {
   const [refresh, setRefresh] = useState(0);
   const [showEnded, setShowEnded] = useState(false);
   const [query, setQuery] = useState('');
+  const [reactivating, setReactivating] = useState<string | null>(null);
+  const reactivationPending = useRef(false);
+  async function resumeRoom(roomCode: string) {
+    if (reactivationPending.current) return;
+    reactivationPending.current = true;
+    setReactivating(roomCode);
+    try {
+      await reactivateRoom(createClient(ENV.upstash), roomCode);
+      navigate(`/j/${roomCode}`);
+    } catch {
+      setError('Could not reactivate the room. It may have expired; refresh the list and try again.');
+    } finally {
+      reactivationPending.current = false;
+      setReactivating(null);
+    }
+  }
   useEffect(() => {
     const controller = new AbortController();
     let requestSequence = 0;
@@ -105,10 +122,16 @@ export function Home() {
                 </p>}
                 <p className="mt-2 text-xs text-ink-soft"><span className="font-mono">{room.code}</span>{room.expiresAt && ` · Expires ${new Date(room.expiresAt).toLocaleString()}`}</p>
               </div>
-              <Link to={room.status === 'active' ? `/j/${room.code}` : `/r/${room.code}/report`} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">{room.status === 'active' ? 'Join chat →' : 'View report →'}</Link>
+              <div className="flex flex-wrap gap-2">
+                {room.status === 'ended' && <button type="button" disabled={reactivating !== null} onClick={() => void resumeRoom(room.code)}
+                  className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                  {reactivating === room.code ? 'Reactivating…' : 'Reactivate and join'}
+                </button>}
+                <Link to={room.status === 'active' ? `/j/${room.code}` : `/r/${room.code}/report`} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">{room.status === 'active' ? 'Join chat →' : 'View report →'}</Link>
+              </div>
             </article>
           ))}</div>}
-          <p className="mt-5 text-xs text-ink-soft">Updates every 10 seconds. Rooms expire automatically after 24 hours.</p>
+          <p className="mt-5 text-xs text-ink-soft">Updates every 10 seconds. New rooms are kept for 30 days. Reactivation preserves the existing expiry shown above.</p>
         </section>
         <details className="rounded-xl border border-border bg-white p-5">
           <summary className="cursor-pointer text-sm font-semibold">Connect an AI agent</summary>

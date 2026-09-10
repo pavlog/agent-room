@@ -11,7 +11,7 @@ function mockResp(body: unknown) {
 describe('createRoom', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('stores a room JSON under the given code with 24h TTL', async () => {
+  it('stores a room JSON under the given code with 30-day TTL', async () => {
     const fetchMock = vi.fn().mockResolvedValue(mockResp({ result: 'OK' }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -40,7 +40,7 @@ describe('createRoom', () => {
     expect(stored.ownerEmail).toBe('alex@example.com');
     expect(stored.ownerName).toBe('Alex Host');
     expect(cmd).toContain('EX');
-    expect(cmd).toContain(86400);
+    expect(cmd).toContain(2592000);
   });
 });
 

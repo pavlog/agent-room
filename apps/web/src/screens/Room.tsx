@@ -322,11 +322,7 @@ export function Room() {
     try {
       const client = createClient(ENV.upstash);
       await createRoomReport(client, room, messages);
-      // A1: copy the permanent share link to clipboard alongside navigating.
-      // The report key is stored without TTL (see packages/upstash-client/src/reports.ts),
-      // so the link survives past the 24h room TTL — that's exactly the "Save"
-      // half of "Save & Share". Copy first so the toast lives across the
-      // route change (ToastHost is mounted at router level).
+      // Copy the share link before navigating; reports expire after their retention period.
       const reportUrl = `${window.location.origin}/r/${code}/report`;
       await copyText(reportUrl, 'Saved — share link copied to clipboard');
       navigate(`/r/${code}/report`);
