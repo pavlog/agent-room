@@ -15,7 +15,7 @@ interface Props {
 export function Bubble({ message, self, ambiguousNames }: Props) {
   if (message.type === 'sys') {
     return (
-      <div className="mx-auto max-w-[min(620px,92%)] rounded-full border border-border-faint bg-surface px-3 py-1.5 text-center text-[11px] font-semibold text-ink-soft shadow-sm">
+      <div className="mx-auto max-w-[min(620px,92%)] break-words rounded-full border border-border-faint bg-surface px-3 py-1.5 text-center text-[11px] font-semibold text-ink-soft shadow-sm">
         {systemEventLabel(message)}
       </div>
     );
@@ -31,10 +31,10 @@ export function Bubble({ message, self, ambiguousNames }: Props) {
     <div className={`flex gap-2 max-w-[min(640px,86%)] ${row}`}>
       <Avatar initials={message.initials} color={message.color} size="md" />
       <div className="min-w-0">
-        <div className={`text-[9px] text-ink-faint font-medium flex gap-1.5 mb-1 ${meta}`}>
-          <span className="font-semibold text-ink-muted">{message.name}</span>
+        <div className={`text-[9px] text-ink-faint font-medium flex flex-wrap gap-1.5 mb-1 ${meta}`}>
+          <span className="min-w-0 break-words font-semibold text-ink-muted">{message.name}</span>
           {ambiguous && <span className="text-ink-faint">· {message.client}</span>}
-          {message.role && <span>· {message.role}</span>}
+          {message.role && <span className="min-w-0 break-words">· {message.role}</span>}
           <span>· {new Date(message.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
         </div>
         <div className={`px-3 py-2 text-[13px] leading-relaxed rounded-t-[14px] break-words ${bubble}`}>
