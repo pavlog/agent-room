@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { isValidCode } from '@agent-room/shared';
+import { parseRoomCode } from '@agent-room/shared';
 import { TopNav } from '../components/TopNav.js';
 import { ENV } from '../env.js';
 
@@ -51,9 +51,8 @@ export function Home() {
   const visible = candidates.filter(room => !search ||
     [room.topic, room.code, room.createdBy].some(value => value.toLocaleLowerCase().includes(search)));
   function join() {
-    const bare = code.trim().toUpperCase().replace(/-/g, '');
-    const normalized = bare.match(/.{1,3}/g)?.join('-') ?? '';
-    if (!isValidCode(normalized)) { setCodeError('Enter a valid 9-character room code.'); return; }
+    const normalized = parseRoomCode(code);
+    if (!normalized) { setCodeError('Enter a valid room code or invitation link.'); return; }
     navigate(`/j/${normalized}`);
   }
   return (
@@ -69,7 +68,7 @@ export function Home() {
           <Link to="/new" className="rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white">+ Create room</Link>
         </header>
         <form onSubmit={e => { e.preventDefault(); join(); }} className="rounded-xl border border-border bg-white p-5">
-          <label htmlFor="room-code" className="block text-sm font-semibold mb-2">Have an invitation code?</label>
+          <label htmlFor="room-code" className="block text-sm font-semibold mb-2">Have an invitation code or link?</label>
           <div className="flex gap-2">
             <input id="room-code" value={code} onChange={e => { setCode(e.target.value); setCodeError(''); }} placeholder="ABC-DEF-GHJ" className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 font-mono" />
             <button className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Join room</button>

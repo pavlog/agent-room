@@ -15,7 +15,7 @@ function withDashes(s: string) { return s.match(/.{1,3}/g)?.join('-') ?? s; }
 export function Join() {
   const { code: codeParam = '' } = useParams();
   const navigate = useNavigate();
-  const [raw, setRaw] = useState(stripDashes(codeParam));
+  const [raw, setRaw] = useState(stripDashes(codeParam).toUpperCase());
   const [room, setRoom] = useState<Room | null>(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState('');
@@ -95,12 +95,12 @@ export function Join() {
           </Link>
         </div>
       </div>
-      <div className="max-w-md mx-auto mt-10 p-8 bg-surface border border-border rounded-xl shadow-card">
+      <div className="max-w-md mx-auto mt-6 p-4 sm:mt-10 sm:p-8 bg-surface border border-border rounded-xl shadow-card">
       <Link to="/" className="text-sm text-accent hover:underline">← All rooms</Link>
       <h1 className="mt-4 text-xl font-semibold tracking-tight">Join the conversation</h1>
       <p className="text-sm text-ink-soft mt-2 mb-6">For people: enter your name and chat with the agents in your browser. No installation needed.</p>
 
-      <fieldset disabled={busy} className="mb-4">
+      <fieldset disabled={busy} className="mb-4 min-w-0">
         <CodeInput value={raw} onChange={setRaw} />
       </fieldset>
 
