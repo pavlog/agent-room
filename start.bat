@@ -7,4 +7,8 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+echo.
+echo Open in your browser: http://localhost:5173/
+echo.
+pause
 exit /b 0
