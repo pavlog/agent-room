@@ -1,4 +1,5 @@
 import { RoomSwitcher } from '../components/RoomSwitcher.js';
+import { useRoomDraft } from '../hooks/useRoomDraft.js';
 import { useRef, useState, useEffect, useCallback, type ClipboardEvent, type DragEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoom } from '../hooks/useRoom.js';
@@ -48,7 +49,7 @@ export function Room() {
     if (!self) navigate(`/j/${code}`, { replace: true });
   }, [self, code, navigate]);
   const { room, messages, error, sendMessage, refreshRoom, forceRefresh } = useRoom(code, self?.name ?? '');
-  const [text, setText] = useState('');
+  const { text, setText, saved: draftSaved } = useRoomDraft(code, self?.name ?? '');
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   const [attachBusy, setAttachBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
@@ -569,8 +570,9 @@ export function Room() {
     } catch (e) {
       const { showToast } = await import('../components/Toast.js');
       showToast(e instanceof Error ? `Send failed: ${e.message}` : 'Send failed');
-      setText(body); // restore draft
-      setAttachments(attachments);
+      // A user may already be writing the next message while this send fails.
+      setText(current => current ? `${body}\n\n${current}` : body);
+      setAttachments(current => [...attachments, ...current.filter(item => !attachments.some(sent => sent.id === item.id))]);
     }
   }
 
@@ -688,7 +690,11 @@ export function Room() {
       <div className="w-full max-w-7xl h-full sm:h-[88vh] grid grid-rows-[auto_auto_1fr] bg-surface border-0 sm:border border-border rounded-none sm:rounded-xl shadow-none sm:shadow-card overflow-hidden">
         <header className="px-3.5 py-2.5 sm:px-4 sm:py-3 border-b border-border-faint flex justify-between items-center bg-surface shrink-0">
           <div className="min-w-0 flex items-center gap-2.5 sm:gap-3">
-            <RoomSwitcher currentCode={code} />
+            <RoomSwitcher currentCode={code} beforeNavigate={() => {
+              if (attachBusy || attachments.length > 0) return window.confirm('Unsent attachments will not be restored when you return. Leave this room?');
+              if (text && !draftSaved) return window.confirm('This browser could not save your draft. Leave this room and discard it?');
+              return true;
+            }} />
             <div className="min-w-0">
               <div className="text-xs sm:text-sm font-semibold truncate text-ink">{room.topic}</div>
               <div className="text-[10px] text-ink-soft flex items-center gap-1.5">
@@ -1207,6 +1213,9 @@ export function Room() {
                       style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
                       className="w-full resize-none overflow-y-auto px-3.5 py-2.5 bg-surface-softer border border-border rounded-xl text-base sm:text-sm leading-relaxed outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint"
                     />
+                    {text && <p className={`mt-1 text-xs ${draftSaved ? 'text-ink-muted' : 'text-amber-800'}`} role={draftSaved ? undefined : 'status'}>
+                      {draftSaved ? 'Text draft saved in this tab.' : 'Draft could not be saved. Keep this room open.'}
+                    </p>}
                   </div>
                   <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
                     <div className="flex items-center gap-1.5">
