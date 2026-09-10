@@ -31,6 +31,8 @@ Launches record the absolute script path, PID, and process creation times in the
 
 Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-process.test.ps1` to test process-identity checks with synthetic records. The policy override applies only to that invocation. This test does not start or stop any processes.
 
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-launch.integration.test.ps1` for an integration check under Windows PowerShell, including paths with spaces. It starts and stops only a temporary idle Node process, refuses a deliberately stale identity record, and removes its temporary fixture. It does not launch the application, bind a port, or connect to Redis.
+
 The launcher expects Redis on port 6389 inside an Ubuntu-22.04 WSL distribution, with append-only persistence in `~/.local/share/agent-room`. Install Redis through Ubuntu's package manager before using the launcher. The Node server runs on Windows; this launcher uses WSL for Redis. Docker is not required.
 
 `scripts/local-server.mjs` serves the built website and the repository's API handlers, including MCP. It also provides a local Redis REST bridge used by the website and MCP handlers. The HTTP server binds only to `127.0.0.1`. Room links are usable on this computer; remote agents cannot reach this localhost endpoint.

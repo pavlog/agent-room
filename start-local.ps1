@@ -21,8 +21,8 @@ if ($listeners.Count) {
 foreach ($required in @('.env.local', 'apps/web/.env.local', 'apps/web/dist/index.html', 'node_modules/express/package.json', 'node_modules/redis/package.json', 'node_modules/esbuild/package.json')) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Missing $required. Complete LOCAL-SETUP.md before starting services." }
 }
-$nodeMajor = & (Get-Command node).Source -p 'process.versions.node.split(".")[0]'
-if ($LASTEXITCODE -ne 0 -or [int]$nodeMajor -lt 22) { throw 'Node.js 22 or newer is required.' }
+$nodeVersion = & (Get-Command node).Source -p 'process.versions.node'
+if ($LASTEXITCODE -ne 0 -or ([version]$nodeVersion).Major -lt 22) { throw 'Node.js 22 or newer is required.' }
 wsl -d Ubuntu-22.04 -- sh -lc 'mkdir -p ~/.local/share/agent-room; timeout 3 redis-cli -p 6389 ping >/dev/null 2>&1 || redis-server --bind 127.0.0.1 --port 6389 --daemonize yes --appendonly yes --dir ~/.local/share/agent-room --pidfile ~/.local/share/agent-room/redis.pid --logfile ~/.local/share/agent-room/redis.log'
 if ($LASTEXITCODE -ne 0) { throw 'Could not start local Redis in Ubuntu-22.04' }
 New-Item -ItemType Directory -Force -Path '.local' | Out-Null
