@@ -115,6 +115,7 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
           <button
             type="button"
             onClick={() => setComposing(v => !v)}
+            disabled={busy}
             className={`mt-3 w-full ${CTRL} ${composing
               ? 'border border-border bg-surface-softer text-ink-muted'
               : 'bg-accent text-white shadow-sm hover:opacity-90'}`}
@@ -566,10 +567,10 @@ function NewTaskForm({ agents, busy, onCancel, onSubmit }: {
 
   return (
     <form
-      className="mt-3 space-y-2.5 rounded-lg border border-border bg-surface-softer p-3"
+      className="mt-3 rounded-lg border border-border bg-surface-softer p-3"
       onSubmit={e => {
         e.preventDefault();
-        if (!title.trim() || conflict) return;
+        if (busy || !title.trim() || conflict) return;
         onSubmit({
           title: title.trim(),
           ...(dod.trim() ? { dod: dod.trim() } : {}),
@@ -578,6 +579,7 @@ function NewTaskForm({ agents, busy, onCancel, onSubmit }: {
         });
       }}
     >
+      <fieldset disabled={busy} className="min-w-0 space-y-2.5" aria-busy={busy}>
       <div>
         <label htmlFor="new-task-title" className="block text-[11px] font-semibold text-ink-muted">What needs doing</label>
         <input
@@ -625,6 +627,7 @@ function NewTaskForm({ agents, busy, onCancel, onSubmit }: {
           Cancel
         </button>
       </div>
+      </fieldset>
     </form>
   );
 }
