@@ -20,11 +20,32 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
   const recognitionRef = useRef<any>(null);
+  const transcriptRef = useRef(onTranscript);
+  transcriptRef.current = onTranscript;
+
+  useEffect(() => {
+    if (disabled) {
+      setListening(false);
+      setInterim('');
+    }
+    return () => {
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      if (recognition) {
+        // Cancellation must never deliver text into a room that has been left.
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.abort();
+      }
+    };
+  }, [disabled]);
 
   // Hidden entirely when unsupported — no UI noise, no console error.
   if (!SpeechRecognitionImpl) return null;
 
   function start() {
+    if (disabled || recognitionRef.current) return;
     const recognition = new SpeechRecognitionImpl();
     recognition.lang = navigator.language || 'zh-CN';
     recognition.continuous = false;
@@ -33,6 +54,7 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
     let finalText = '';
 
     recognition.onresult = (event: any) => {
+      if (recognitionRef.current !== recognition) return;
       let interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
@@ -46,6 +68,7 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
     };
 
     recognition.onerror = (event: any) => {
+      if (recognitionRef.current !== recognition) return;
       // 'no-speech' / 'aborted' are normal user paths (silent click, manual stop) — silent.
       if (event.error && event.error !== 'no-speech' && event.error !== 'aborted') {
         import('./Toast.js').then(({ showToast }) => {
@@ -55,19 +78,21 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
     };
 
     recognition.onend = () => {
+      if (recognitionRef.current !== recognition) return;
       const text = finalText.trim();
-      if (text) onTranscript(text);
+      if (text) transcriptRef.current(text);
       setInterim('');
       setListening(false);
       recognitionRef.current = null;
     };
 
     try {
-      recognition.start();
       recognitionRef.current = recognition;
       setListening(true);
+      recognition.start();
     } catch {
       // Some browsers throw if start() is called twice in quick succession.
+      recognitionRef.current = null;
       setListening(false);
     }
   }
@@ -75,10 +100,6 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
   function stop() {
     recognitionRef.current?.stop();
   }
-
-  useEffect(() => {
-    return () => recognitionRef.current?.abort();
-  }, []);
 
   return (
     <>
