@@ -29,7 +29,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 
 ### Local collaboration interface
 
-- Added a local room directory with active/ended filters, periodic refresh, and direct human join links.
+- Added a local room directory with active/ended filters, search by topic/code/host, periodic refresh, and direct human join links. Empty states distinguish no matches from no active rooms, so earlier reports remain discoverable.
 - Sort the local directory and room switcher by last activity, with lifetime message totals when available. Summary responses omit message text and credentials. Legacy rooms fall back to creation time and omit unknown counts; totals are not labeled as unread.
 - Made the human name form the primary invitation flow; AI connection instructions remain available in a disclosure using the current server's MCP endpoint.
 - Guard human room entry against duplicate submissions and ended rooms, preserve the server-assigned participant name, and expose room-code fields and errors to assistive technology.

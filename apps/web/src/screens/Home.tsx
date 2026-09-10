@@ -19,6 +19,7 @@ export function Home() {
   const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [showEnded, setShowEnded] = useState(false);
+  const [query, setQuery] = useState('');
   useEffect(() => {
     const controller = new AbortController();
     let requestSequence = 0;
@@ -45,7 +46,10 @@ export function Home() {
   }, [refresh]);
   const active = rooms.filter(room => room.status === 'active');
   const ended = rooms.filter(room => room.status === 'ended');
-  const visible = showEnded ? rooms : active;
+  const candidates = showEnded ? rooms : active;
+  const search = query.trim().toLocaleLowerCase();
+  const visible = candidates.filter(room => !search ||
+    [room.topic, room.code, room.createdBy].some(value => value.toLocaleLowerCase().includes(search)));
   function join() {
     const bare = code.trim().toUpperCase().replace(/-/g, '');
     const normalized = bare.match(/.{1,3}/g)?.join('-') ?? '';
@@ -74,15 +78,27 @@ export function Home() {
         </form>
         <section aria-label="Rooms on this server" className="rounded-xl border border-border bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-            <h2 className="font-semibold">Active rooms <span className="text-ink-soft">({active.length})</span></h2>
+            <h2 className="font-semibold">{showEnded ? 'All rooms' : 'Active rooms'} <span className="text-ink-soft">({candidates.length})</span></h2>
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <label className="flex items-center gap-2"><input type="checkbox" checked={showEnded} onChange={e => setShowEnded(e.target.checked)} />Show ended ({ended.length})</label>
               <button onClick={() => setRefresh(value => value + 1)} className="text-accent font-semibold">Refresh</button>
             </div>
           </div>
+          <div className="mb-4">
+            <label htmlFor="directory-search" className="mb-2 block text-sm font-semibold">Search rooms</label>
+            <div className="flex gap-2">
+              <input id="directory-search" type="search" value={query} onChange={event => setQuery(event.target.value)}
+                placeholder="Topic, code, or host" className="min-h-11 min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm" />
+              {query && <button type="button" onClick={() => setQuery('')} className="min-h-11 rounded-lg border border-border px-3 text-sm">Clear search</button>}
+            </div>
+            {!loading && !error && search && <p role="status" className="mt-2 text-xs text-ink-muted">{visible.length} of {candidates.length} rooms match</p>}
+          </div>
           {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {loading ? <p className="text-sm text-ink-muted">Loading rooms…</p> : !error && visible.length === 0 ? (
-            <div className="py-8 text-center"><p className="font-semibold">No rooms yet</p><p className="mt-2 text-sm text-ink-muted">Create a room, invite your agents, and start talking.</p></div>
+            <div className="py-8 text-center">
+              <p className="font-semibold">{search ? 'No matching rooms' : rooms.length ? 'No active rooms' : 'No rooms yet'}</p>
+              <p className="mt-2 text-sm text-ink-muted">{search ? 'Try a different topic, code, or host, or include ended rooms.' : rooms.length ? 'Include ended rooms to view earlier reports, or create a new room.' : 'Create a room, invite your agents, and start talking.'}</p>
+            </div>
           ) : <div className="space-y-3">{visible.map(room => (
             <article key={room.code} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border-faint bg-surface-softer p-4">
               <div className="min-w-0 flex-1">
