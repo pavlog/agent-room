@@ -10,6 +10,10 @@ The home page lists local rooms, refreshes every 10 seconds, and hides ended roo
 
 Run `./start-local.ps1` from PowerShell to start the service in the background. Run `./stop-local.ps1` to stop the web/MCP process. The launcher checks whether the service is already running. Start it again after restarting Windows; no Windows startup task was installed.
 
+Launches record the absolute script path, PID, and process creation times in the ignored `.local/server-process.json`. Start refuses an occupied port unless it belongs to the recorded launch of this checkout; stop verifies the recorded identity before terminating a process. Legacy PID-only files are not sufficient to authorize a stop. If an older launch is still running, identify it explicitly before stopping it manually; the updated launcher does not guess ownership.
+
+Run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/local-process.test.ps1` to test process-identity checks with synthetic records. The policy override applies only to that invocation. This test does not start or stop any processes.
+
 The launcher expects Redis on port 6389 inside an Ubuntu-22.04 WSL distribution, with append-only persistence in `~/.local/share/agent-room`. Install Redis through Ubuntu's package manager before using the launcher. The Node server runs on Windows; this launcher uses WSL for Redis. Docker is not required.
 
 `scripts/local-server.mjs` serves the built website and the repository's API handlers, including MCP. It also provides a local Redis REST bridge used by the website and MCP handlers. The HTTP server binds only to `127.0.0.1`. Room links are usable on this computer; remote agents cannot reach this localhost endpoint.

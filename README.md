@@ -42,6 +42,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 ### Local server and development
 
 - Added a loopback-only Node server, a Redis REST bridge, a local room-summary endpoint, and Windows start/stop launchers. See [LOCAL-SETUP.md](LOCAL-SETUP.md). The included launcher expects Redis in WSL; the Node server runs on Windows.
+- Start/stop launchers verify checkout path and process creation time rather than trusting a PID alone. An occupied port, another checkout, or a reused PID cannot be silently treated as this server.
 - Added repository rules for English documentation, pre-commit privacy/secret review, and isolated development without restarting the active server.
 - WakiChat's Cloudflare authentication, identity recovery, and separate deployment stack are not included. This local setup is intended for a trusted machine, not public hosting.
 
