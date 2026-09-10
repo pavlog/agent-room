@@ -4,11 +4,7 @@ import { parseRoomCode } from '@agent-room/shared';
 import { TopNav } from '../components/TopNav.js';
 import { ENV } from '../env.js';
 
-type RoomSummary = {
-  code: string; topic: string; status: string; createdAt: number;
-  createdBy: string; participantCount: number; expiresAt: number | null;
-  lastActivityAt?: number; messageCount?: number | null;
-};
+import { parseRoomDirectory, type RoomSummary } from '../lib/roomDirectory.js';
 
 export function Home() {
   const navigate = useNavigate();
@@ -34,8 +30,8 @@ export function Home() {
         });
         if (!response.ok) throw new Error('Cannot load rooms. Check that the local server is running.');
         const data = await response.json();
-        if (!Array.isArray(data.rooms)) throw new Error('The room directory requires the local server.');
-        if (canApply()) { settledSequence = request; setRooms(data.rooms); setError(''); }
+        const parsedRooms = parseRoomDirectory(data);
+        if (canApply()) { settledSequence = request; setRooms(parsedRooms); setError(''); }
       } catch (err) {
         if (canApply()) { settledSequence = request; setError(err instanceof Error ? err.message : 'Cannot load rooms.'); }
       } finally { if (canApply()) setLoading(false); }

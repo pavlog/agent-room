@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { isValidCode } from '@agent-room/shared';
+import { parseRoomDirectory, type RoomSummary } from '../lib/roomDirectory.js';
 import { ENV } from '../env.js';
 
-type Summary = { code: string; topic: string; status: string; participantCount: number; lastActivityAt?: number; messageCount?: number | null };
 
 /** Local room navigation inspired by WakiChat; keeps this fork's API contract. */
 export function RoomSwitcher({ currentCode, beforeNavigate }: { currentCode: string; beforeNavigate?: () => boolean }) {
   const [open, setOpen] = useState(false);
-  const [rooms, setRooms] = useState<Summary[]>([]);
+  const [rooms, setRooms] = useState<RoomSummary[]>([]);
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -38,11 +37,7 @@ export function RoomSwitcher({ currentCode, beforeNavigate }: { currentCode: str
         });
         if (!response.ok) throw new Error();
         const data = await response.json();
-        if (!Array.isArray(data.rooms)) throw new Error();
-        const valid = data.rooms.filter((room: Summary) => room &&
-          typeof room.code === 'string' && isValidCode(room.code) &&
-          typeof room.topic === 'string' && room.status === 'active' &&
-          typeof room.participantCount === 'number');
+        const valid = parseRoomDirectory(data).filter(room => room.status === 'active');
         if (!controller.signal.aborted) setRooms(valid);
       } catch {
         if (!controller.signal.aborted) setError('Room list unavailable. Open the directory to retry or join by code.');
