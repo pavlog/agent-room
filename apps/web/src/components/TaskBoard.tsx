@@ -122,7 +122,7 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
             {composing ? 'Cancel' : 'New task'}
           </button>
         )}
-        {composing && (
+        {composing && !ended && (
           <NewTaskForm
             agents={agents}
             busy={busy}
@@ -226,6 +226,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
   const canAssign = !ended && isHost && !CLOSED.has(task.state);
   const canCancel = !ended && isHost && !CLOSED.has(task.state)
     && !task.evidence && !task.readinessNote?.trim();
+  const panelAllowed = panel === 'assign' ? canAssign : panel === 'reject' ? canRule : panel === 'block' ? canBlock : false;
 
   const closePanel = () => { setPanel('none'); setNote(''); };
 
@@ -281,7 +282,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
             />
           )}
 
-          {panel === 'none' ? (
+          {!panelAllowed ? (
             <div className="mt-3 flex flex-wrap gap-2">
               {canRule && (
                 <>
