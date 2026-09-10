@@ -45,4 +45,13 @@ describe('local room activity summaries', () => {
     redis.ttl = async () => -2;
     expect(await listLocalRooms(redis)).toEqual([]);
   });
+  it('rejects out-of-range dates that would crash browser date formatting', async () => {
+    const { redis, data, last } = fixture();
+    const room = JSON.parse(data.get(`room:${b}`)!);
+    data.set(`room:${b}`, JSON.stringify({ ...room, createdAt: 1e30 }));
+    last.set(`room-msgs:${a}`, JSON.stringify({ time: 1e30 }));
+    const rooms = await listLocalRooms(redis);
+    expect(rooms).toHaveLength(1);
+    expect(rooms[0].lastActivityAt).toBe(100);
+  });
 });

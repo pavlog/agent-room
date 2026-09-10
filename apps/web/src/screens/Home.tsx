@@ -21,7 +21,11 @@ export function Home() {
   const [showEnded, setShowEnded] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
+    let requestSequence = 0;
+    let settledSequence = 0;
     async function load() {
+      const request = ++requestSequence;
+      const canApply = () => !controller.signal.aborted && request >= settledSequence;
       try {
         const response = await fetch('/api/local/rooms', {
           headers: { Authorization: `Bearer ${ENV.upstash.token}` },
@@ -30,10 +34,10 @@ export function Home() {
         if (!response.ok) throw new Error('Cannot load rooms. Check that the local server is running.');
         const data = await response.json();
         if (!Array.isArray(data.rooms)) throw new Error('The room directory requires the local server.');
-        if (!controller.signal.aborted) { setRooms(data.rooms); setError(''); }
+        if (canApply()) { settledSequence = request; setRooms(data.rooms); setError(''); }
       } catch (err) {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Cannot load rooms.');
-      } finally { if (!controller.signal.aborted) setLoading(false); }
+        if (canApply()) { settledSequence = request; setError(err instanceof Error ? err.message : 'Cannot load rooms.'); }
+      } finally { if (canApply()) setLoading(false); }
     }
     void load();
     const timer = setInterval(() => { void load(); }, 10000);

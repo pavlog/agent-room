@@ -5,3 +5,4 @@
 - Before every commit, inspect the staged diff for credentials, tokens, personal data, machine-specific paths, logs, and session contents. Exclude secrets and replace private examples with placeholders. Report any secret already committed so it can be rotated.
 - Do not restart or modify the active server without an explicit request. While it serves live work, develop in a separate worktree. Work in the primary checkout is allowed after the maintainer authorizes the transition and the server is stopped. Validate with isolated test data and ports; preserve existing room data.
 - Preserve upstream attribution and distinguish inherited features from changes introduced in this fork.
+- Record unclear product or compatibility decisions in docs/OPEN-DECISIONS.md, then continue with the next concrete, independent task. Do not block routine progress on those decisions or silently resolve them through speculative changes.

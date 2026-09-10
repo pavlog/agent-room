@@ -1,4 +1,6 @@
 /** Read-only summaries. Never return transcripts, keys, or participant identities. */
+const isTimestamp = value => Number.isFinite(value) && value >= 0 && value <= 8640000000000000;
+
 export async function listLocalRooms(redis, now = Date.now()) {
   const rooms = [];
   const seen = new Set();
@@ -11,7 +13,7 @@ export async function listLocalRooms(redis, now = Date.now()) {
       let room;
       try { room = JSON.parse(raw); } catch { continue; }
       if (!room || key !== `room:${room.code}` || typeof room.topic !== 'string'
-        || !['active', 'ended'].includes(room.status) || !Number.isFinite(room.createdAt)) continue;
+        || !['active', 'ended'].includes(room.status) || !isTimestamp(room.createdAt)) continue;
       const [ttl, lastRaw, countRaw] = await Promise.all([
         redis.ttl(key), redis.lIndex(`room-msgs:${room.code}`, -1), redis.get(`room-msg-count:${room.code}`),
       ]);
@@ -20,7 +22,7 @@ export async function listLocalRooms(redis, now = Date.now()) {
       if (lastRaw) {
         try {
           const last = JSON.parse(lastRaw);
-          if (Number.isFinite(last?.time)) lastActivityAt = Math.max(lastActivityAt, last.time);
+          if (isTimestamp(last?.time)) lastActivityAt = Math.max(lastActivityAt, last.time);
         } catch { /* Keep the creation-time fallback for malformed legacy data. */ }
       }
       const parsedCount = typeof countRaw === 'string' && /^\d+$/.test(countRaw) ? Number(countRaw) : NaN;
