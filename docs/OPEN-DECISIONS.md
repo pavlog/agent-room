@@ -12,6 +12,8 @@ These items need a separate design or compatibility decision. Continue independe
 
 ## Deployment and identity
 
+- Human-role presets beyond the existing role picker: decide which human roles are useful before adding a new catalog. Browser-local saved name/role pairs already provide quick reuse without defining new role behavior.
+
 - Room creation currently persists the host identity/key in browser storage after creating the room. If storage fails at that point, recovery versus rollback needs a deliberate design; a failed client step must not silently create repeated rooms on retries. Do not invent server-side ownership recovery in the UI-only work.
 
 - Public hosting and WakiChat's identity recovery are outside the current trusted-local-server setup. Decide authentication, authorization, and client compatibility before exposing the service remotely.

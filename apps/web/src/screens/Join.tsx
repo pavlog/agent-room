@@ -8,6 +8,8 @@ import { CodeInput } from '../components/CodeInput.js';
 import { AgentRoomLogo } from '../components/AgentRoomLogo.js';
 import { AgentJoinNotice } from '../components/AgentJoinNotice.js';
 import { colorForName, initialsFor } from '../lib/colors.js';
+import { useHumanProfiles } from '../hooks/useHumanProfiles.js';
+import { SavedHumanProfiles } from '../components/SavedHumanProfiles.js';
 
 function stripDashes(s: string) { return s.replace(/-/g, ''); }
 function withDashes(s: string) { return s.match(/.{1,3}/g)?.join('-') ?? s; }
@@ -17,8 +19,8 @@ export function Join() {
   const navigate = useNavigate();
   const [raw, setRaw] = useState(stripDashes(codeParam).toUpperCase());
   const [room, setRoom] = useState<Room | null>(null);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
+  const human = useHumanProfiles();
+  const { name, setName, role, setRole } = human;
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const joinInFlight = useRef(false);
@@ -73,6 +75,7 @@ export function Join() {
       // Persist whatever the server actually assigned so future writes use it.
       const finalName = result.participant.name;
       sessionStorage.setItem(`room:${room.code}:self`, JSON.stringify({ name: finalName, role: role.trim() }));
+      human.remember();
       navigate(`/r/${room.code}`);
     } catch (e) {
       if (e instanceof HostNameTakenError) {
@@ -117,6 +120,8 @@ export function Join() {
           </div>
 
           <form onSubmit={e => { e.preventDefault(); void join(); }}>
+          <fieldset disabled={busy} className="min-w-0">
+          <SavedHumanProfiles profiles={human.profiles} onSelect={human.select} onForget={human.forget} />
           <label className="block mb-3">
             <span className="text-[11px] font-semibold text-ink-muted block mb-1">Your name</span>
             <input value={name} onChange={e => setName(e.target.value)} required autoComplete="nickname" placeholder="How should we call you?"
@@ -137,8 +142,9 @@ export function Join() {
           </label>
 
           <button type="submit" disabled={busy || !name.trim() || room.status === 'ended'} className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50">
-            {room.status === 'ended' ? 'This meeting has ended' : busy ? 'Joining…' : 'Enter chat →'}
+            {room.status === 'ended' ? 'This meeting has ended' : busy ? 'Joining…' : name.trim() ? `Join as ${name.trim()} →` : 'Enter chat →'}
           </button>
+          </fieldset>
           </form>
           {room.status === 'ended' && <Link to={`/r/${room.code}/report`} className="mt-3 block text-sm text-accent">View meeting report →</Link>}
         </>

@@ -5,6 +5,8 @@ import { generateCode, ROLE_PRESETS } from '@agent-room/shared';
 import { ENV } from '../env.js';
 import { ROOM_TEMPLATES, roleLabelFor, templateById } from '../lib/templates.js';
 import { AgentRoomLogo } from '../components/AgentRoomLogo.js';
+import { useHumanProfiles } from '../hooks/useHumanProfiles.js';
+import { SavedHumanProfiles } from '../components/SavedHumanProfiles.js';
 
 const TEMPLATE_KEY = 'room:pending-template:';
 
@@ -19,8 +21,8 @@ export function CreateMeeting() {
   const initialTopic = searchParams.get('topic') ?? '';
   const [templateId, setTemplateId] = useState<string>('blank');
   const [topic, setTopic] = useState(initialTopic);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('');
+  const human = useHumanProfiles();
+  const { name, setName, role, setRole } = human;
   const [busy, setBusy] = useState(false);
   const createInFlight = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export function CreateMeeting() {
       if (template && template.id !== 'blank') {
         sessionStorage.setItem(`${TEMPLATE_KEY}${code}`, template.id);
       }
+      human.remember();
       navigate(`/r/${code}/lobby`);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unknown error');
@@ -133,6 +136,7 @@ export function CreateMeeting() {
           </span>
         )}
       </label>
+      <SavedHumanProfiles profiles={human.profiles} onSelect={human.select} onForget={human.forget} />
       <label className="block mb-4">
         <span className="text-xs font-semibold text-ink-muted block mb-1.5">Your name</span>
         <input value={name} onChange={e => setName(e.target.value)} required

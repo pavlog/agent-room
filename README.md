@@ -29,6 +29,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 
 ### Local collaboration interface
 
+- Human join and room creation remember up to eight name/role pairs in this browser after successful entry. The most recent pair is prefilled, saved pairs are selectable, and a forget action clears the history. These preferences do not include host keys or bypass room identity checks.
 - Delete ended rooms from the local directory with explicit confirmation. The authenticated local endpoint atomically refuses active rooms and removes the room, messages, message count, tasks, report, turn state, and webhook registrations. External attachment files and browser-local copies are not deleted.
 - Reactivate ended rooms directly from the directory, then join with your own name. New rooms are retained for 30 days from creation, and new reports for 30 days from export. Existing Redis deadlines are not migrated; reactivation preserves the current deadline and cannot restore expired data. Older external clients may still apply their original retention policy.
 - Added a local room directory with active/ended filters, search by topic/code/host, periodic refresh, and direct human join links. Empty states distinguish no matches from no active rooms, so earlier reports remain discoverable.
