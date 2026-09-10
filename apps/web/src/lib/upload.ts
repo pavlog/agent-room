@@ -81,14 +81,34 @@ export async function uploadAttachment(
   const resp = await fetch('/api/upload', { method: 'POST', body: fd });
   if (!resp.ok) {
     let body: { error?: string; message?: string } = {};
-    try { body = (await resp.json()) as typeof body; } catch { /* keep empty */ }
+    try {
+      const value: unknown = await resp.json();
+      if (value && typeof value === 'object') {
+        if ('error' in value && typeof value.error === 'string') body.error = value.error;
+        if ('message' in value && typeof value.message === 'string') body.message = value.message;
+      }
+    } catch { /* keep empty */ }
     throw new UploadError(
       body.error ?? 'upload_failed',
       resp.status,
       body.message ?? `Upload failed (${resp.status}).`,
     );
   }
-  return (await resp.json()) as MessageAttachment;
+  try {
+    const attachment: MessageAttachment = await resp.json();
+    if (!attachment || typeof attachment !== 'object'
+      || typeof attachment.id !== 'string' || !attachment.id
+      || !['image', 'file'].includes(attachment.type)
+      || typeof attachment.name !== 'string' || !attachment.name
+      || typeof attachment.mime !== 'string' || !attachment.mime
+      || !Number.isSafeInteger(attachment.size) || attachment.size <= 0
+      || !Number.isFinite(attachment.uploadedAt) || attachment.uploadedAt < 0
+      || typeof attachment.url !== 'string'
+      || !['http:', 'https:'].includes(new URL(attachment.url).protocol)) throw new Error();
+    return attachment;
+  } catch {
+    throw new UploadError('invalid_response', resp.status, 'The server returned invalid attachment details. Please retry the upload.');
+  }
 }
 
 // Best-effort cleanup hook called from the host's End-meeting handler.
