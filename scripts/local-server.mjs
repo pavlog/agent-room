@@ -1,3 +1,4 @@
+import { listLocalRooms } from './room-directory.mjs';
 import express from 'express';
 import { createClient } from 'redis';
 import { build } from 'esbuild';
@@ -19,24 +20,7 @@ const json = express.json({ limit: '12mb' });
 app.get('/api/local/rooms', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.headers.authorization !== `Bearer ${token}`) return res.status(401).json({ error: 'Unauthorized' });
-  const rooms = [];
-  const seen = new Set();
-  for await (const keys of redis.scanIterator({ MATCH: 'room:*', COUNT: 100 })) {
-    for (const key of keys) {
-      if (!/^room:[A-Z0-9]{3}-[A-Z0-9]{3}-[A-Z0-9]{3}$/.test(key) || seen.has(key)) continue;
-      seen.add(key);
-      const raw = await redis.get(key);
-      if (!raw) continue;
-      const room = JSON.parse(raw);
-      const ttl = await redis.ttl(key);
-      if (ttl === -2) continue;
-      rooms.push({ code: room.code, topic: room.topic, status: room.status,
-        createdAt: room.createdAt, createdBy: room.createdBy,
-        participantCount: room.participants?.length ?? 0,
-        expiresAt: ttl >= 0 ? Date.now() + ttl * 1000 : null });
-    }
-  }
-  rooms.sort((a, b) => b.createdAt - a.createdAt);
+  const rooms = await listLocalRooms(redis);
   res.json({ rooms });
 });
 

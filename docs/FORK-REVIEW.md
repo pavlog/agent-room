@@ -20,8 +20,8 @@ Browser and handler harnesses use synthetic participants and files. They do not 
 
 ## Activity and unread indicators
 
-WakiChat's room sidebar was used as a navigation reference. This fork's `/api/local/rooms` response currently exposes creation time, status, host, participant count, and expiration. It does not expose message totals, last-message time, or a per-participant read cursor. Creation time is not a substitute for recent activity.
+WakiChat's room sidebar was used as a navigation reference. This fork's `/api/local/rooms` response now exposes last activity and lifetime message totals in addition to creation time, status, host, participant count, and expiration. It reads the existing `room-msg-count` counter and the timestamp of the last retained message without returning message text. Legacy rooms without a counter report an unknown total; rooms without a usable last message fall back to creation time. `npm run test:local` checks summaries against fake Redis data, including corrupt and expired rooms.
 
-Unread badges are deferred until the API has an explicit message-count/read-position contract. A follow-up should define how hidden tabs, retained/truncated history, multiple devices, and reconnects affect read state, then add summary fields and test them with isolated storage. Do not report a message as read merely because background polling fetched it.
+Unread badges are deferred until the API and client have an explicit read-position contract. A follow-up should define how hidden tabs, retained/truncated history, multiple devices, and reconnects affect read state. The existing message poller reads the transcript and lifetime counter separately, so a concurrently arriving message could be counted before it has been rendered. Do not treat that counter as a proven read position or report a message as read merely because background polling fetched it.
 
 WakiChat's private hosting configuration, identity recovery, and authentication stack remain outside this change set. No additional features should be added merely to keep the scheduled review running.

@@ -30,6 +30,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 ### Local collaboration interface
 
 - Added a local room directory with active/ended filters, periodic refresh, and direct human join links.
+- Sort the local directory and room switcher by last activity, with lifetime message totals when available. Summary responses omit message text and credentials. Legacy rooms fall back to creation time and omit unknown counts; totals are not labeled as unread.
 - Made the human name form the primary invitation flow; AI connection instructions remain available in a disclosure using the current server's MCP endpoint.
 - Guard human room entry against duplicate submissions and ended rooms, preserve the server-assigned participant name, and expose room-code fields and errors to assistive technology.
 - Added a searchable room switcher in the chat header, inspired by [WakiChat](https://github.com/wwahmed/agent-room/blob/main/apps/web/src/components/RoomListPane.tsx). It uses this fork's local directory API, highlights the current room, and handles unavailable directories without blocking chat. It fetches summaries only when opened; it does not automatically join another room.

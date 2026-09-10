@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { isValidCode } from '@agent-room/shared';
 import { ENV } from '../env.js';
 
-type Summary = { code: string; topic: string; status: string; participantCount: number };
+type Summary = { code: string; topic: string; status: string; participantCount: number; lastActivityAt?: number; messageCount?: number | null };
 
 /** Local room navigation inspired by WakiChat; keeps this fork's API contract. */
 export function RoomSwitcher({ currentCode, beforeNavigate }: { currentCode: string; beforeNavigate?: () => boolean }) {
@@ -84,6 +84,10 @@ export function RoomSwitcher({ currentCode, beforeNavigate }: { currentCode: str
                 className="mb-2 block rounded-lg border border-border p-3 hover:bg-accent-tint">
                 <span className="block break-words font-semibold">{room.topic}{room.code === currentCode && ' · Current room'}</span>
                 <span className="text-xs text-ink-muted">{room.code} · {room.participantCount} participants</span>
+                {room.lastActivityAt != null && <span className="mt-1 block text-xs text-ink-muted">
+                  Last activity: {new Date(room.lastActivityAt).toLocaleString()}
+                  {room.messageCount != null && ` · ${room.messageCount} messages total`}
+                </span>}
               </Link>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { ENV } from '../env.js';
 type RoomSummary = {
   code: string; topic: string; status: string; createdAt: number;
   createdBy: string; participantCount: number; expiresAt: number | null;
+  lastActivityAt?: number; messageCount?: number | null;
 };
 
 export function Home() {
@@ -83,6 +84,10 @@ export function Home() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold break-words">{room.topic}</h3><span className={`rounded-full px-2 py-0.5 text-xs ${room.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>{room.status === 'active' ? 'Active' : 'Ended'}</span></div>
                 <p className="mt-1 text-sm text-ink-muted">Host: {room.createdBy} · {room.participantCount} participants</p>
+                {room.lastActivityAt != null && <p className="mt-1 text-xs text-ink-muted">
+                  Last activity: <time dateTime={new Date(room.lastActivityAt).toISOString()}>{new Date(room.lastActivityAt).toLocaleString()}</time>
+                  {room.messageCount != null && ` · ${room.messageCount} messages total`}
+                </p>}
                 <p className="mt-2 text-xs text-ink-soft"><span className="font-mono">{room.code}</span>{room.expiresAt && ` · Expires ${new Date(room.expiresAt).toLocaleString()}`}</p>
               </div>
               <Link to={room.status === 'active' ? `/j/${room.code}` : `/r/${room.code}/report`} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">{room.status === 'active' ? 'Join chat →' : 'View report →'}</Link>
