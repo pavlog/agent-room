@@ -461,7 +461,7 @@ function NotePanel({ id, label, submitLabel, destructive, value, onChange, busy,
   onSubmit: () => void;
 }) {
   return (
-    <div className="mt-3 rounded-lg border border-border bg-surface-softer p-2.5">
+    <fieldset disabled={busy} aria-busy={busy} className="min-w-0 mt-3 rounded-lg border border-border bg-surface-softer p-2.5">
       <label className="block text-[11px] font-semibold text-ink-muted" htmlFor={id}>{label}</label>
       <textarea
         id={id}
@@ -483,7 +483,7 @@ function NotePanel({ id, label, submitLabel, destructive, value, onChange, busy,
           Cancel
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }
 
@@ -506,7 +506,7 @@ function AssignPanel({ agents, task, busy, onCancel, onSubmit }: {
   const unchanged = !owner && !verifier;
 
   return (
-    <div className="mt-3 space-y-2 rounded-lg border border-border bg-surface-softer p-2.5">
+    <fieldset disabled={busy} aria-busy={busy} className="min-w-0 mt-3 space-y-2 rounded-lg border border-border bg-surface-softer p-2.5">
       <AgentSelect id={`owner-${task.id}`} label="Owner" value={owner} onChange={setOwner} agents={agents} anyLabel="Leave unchanged" />
       <AgentSelect id={`verifier-${task.id}`} label="Verifier" value={verifier} onChange={setVerifier} agents={agents} anyLabel="Leave unchanged" />
       {conflict && (
@@ -530,7 +530,7 @@ function AssignPanel({ agents, task, busy, onCancel, onSubmit }: {
           Cancel
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }
 
