@@ -325,8 +325,15 @@ function renderInline(text: string): ReactNode[] {
     } else if (value.startsWith('**')) {
       nodes.push(<strong key={nodes.length}>{value.slice(2, -2)}</strong>);
     } else {
-      const trailing = value.match(/[.,;:!?)\]"']+$/)?.[0] ?? '';
-      const href = trailing ? value.slice(0, -trailing.length) : value;
+      let href = value;
+      while (/[.,;:!?)\]"']$/.test(href)) {
+        const end = href.at(-1)!;
+        const opening = end === ')' ? '(' : end === ']' ? '[' : null;
+        // Keep balanced URL delimiters, including article paths and IPv6 hosts.
+        if (opening && [...href].filter(char => char === opening).length >= [...href].filter(char => char === end).length) break;
+        href = href.slice(0, -1);
+      }
+      const trailing = value.slice(href.length);
       nodes.push(
         <a key={nodes.length} href={href} target="_blank" rel="noreferrer" className="font-semibold underline underline-offset-2">
           {href}
