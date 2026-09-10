@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { artifactLabel, extractArtifacts, normalizeEscapedWhitespace, type ArtifactKind, type Message, type RoomArtifact, type RoomReport } from '@agent-room/shared';
 import { createClient, createRoomReport, getRoom, getRoomReport, listMessages } from '@agent-room/upstash-client';
@@ -10,18 +10,27 @@ export function Report() {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const refreshInFlight = useRef(false);
 
   useEffect(() => {
+    let cancelled = false;
+    setError(null);
+    setMissing(false);
     const client = createClient(ENV.upstash);
     getRoomReport(client, code)
       .then(found => {
+        if (cancelled) return;
         setReport(found);
         setMissing(!found);
       })
-      .catch(e => setError(e instanceof Error ? e.message : String(e)));
-  }, [code]);
+      .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)); });
+    return () => { cancelled = true; };
+  }, [code, retry]);
 
   async function refreshReport() {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     setRefreshing(true);
     setError(null);
     try {
@@ -34,11 +43,19 @@ export function Report() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
+      refreshInFlight.current = false;
       setRefreshing(false);
     }
   }
 
-  if (error) return <div className="p-10 text-red-600">{error}</div>;
+  if (error && !report) return <div className="mx-auto max-w-3xl p-6 sm:p-10">
+    <h1 className="text-2xl font-bold">Could not load report</h1>
+    <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>
+    <div className="mt-5 flex flex-wrap gap-4">
+      <button type="button" onClick={() => setRetry(value => value + 1)} className="min-h-11 rounded-lg bg-accent px-4 font-semibold text-white">Retry loading</button>
+      <Link to="/" className="inline-flex min-h-11 items-center text-accent">All rooms</Link>
+    </div>
+  </div>;
   if (missing) {
     return (
       <div className="min-h-full bg-surface-soft px-6 py-12">
@@ -46,6 +63,7 @@ export function Report() {
           <h1 className="text-2xl font-bold mb-3">Report not found</h1>
           <p className="text-sm text-ink-soft mb-5">This room has not been exported yet.</p>
           <Link to={`/r/${code}`} className="text-sm font-semibold text-accent">Back to room</Link>
+          <Link to="/" className="ml-4 text-sm font-semibold text-accent">All rooms</Link>
         </div>
       </div>
     );
@@ -57,9 +75,14 @@ export function Report() {
     <div className="min-h-full bg-surface-soft">
       <header className="bg-slate-950 text-white px-6 py-10">
         <div className="max-w-5xl mx-auto">
+          <Link to="/" className="mb-4 inline-flex min-h-11 items-center text-sm text-slate-300 underline">All rooms</Link>
           <div className="text-xs font-semibold text-emerald-300 mb-3">Agent Room Report · {report.code}</div>
           <h1 className="text-4xl font-bold tracking-tight mb-4">{report.topic}</h1>
           <p className="text-slate-300 max-w-3xl">{report.summary}</p>
+          {error && <div role="alert" className="mt-4 rounded-lg border border-amber-300/40 bg-amber-100 p-3 text-sm text-amber-950">
+            <p>Could not refresh. The last loaded report is still available to read and download.</p>
+            <p className="mt-1">{error}</p>
+          </div>}
           <div className="mt-6 flex flex-wrap gap-3 text-xs text-slate-300">
             <span>{report.messageCount} messages</span>
             <span>{report.participants.length} participants</span>
