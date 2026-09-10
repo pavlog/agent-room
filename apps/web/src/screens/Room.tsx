@@ -53,6 +53,7 @@ export function Room() {
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   const [sending, setSending] = useState(false);
   const sendInFlight = useRef(false);
+  const uploadInFlight = useRef(false);
   const [attachBusy, setAttachBusy] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [modeBusy, setModeBusy] = useState(false);
@@ -562,7 +563,7 @@ export function Room() {
 
   async function send() {
     const body = text.trim();
-    if ((!body && attachments.length === 0) || ended || sendInFlight.current) return;
+    if ((!body && attachments.length === 0) || ended || sendInFlight.current || uploadInFlight.current) return;
     sendInFlight.current = true;
     setSending(true);
     const msg: Message = {
@@ -595,7 +596,13 @@ export function Room() {
 
   async function addFiles(files: FileList | File[]) {
     const incoming = Array.from(files);
-    if (!incoming.length) return;
+    if (!incoming.length || ended) return;
+    if (uploadInFlight.current || sendInFlight.current) {
+      const { showToast } = await import('../components/Toast.js');
+      showToast('Wait for the current upload or message to finish before adding files.');
+      return;
+    }
+    uploadInFlight.current = true;
     setAttachBusy(true);
     try {
       const slots = Math.max(0, MAX_ATTACHMENTS_PER_MESSAGE - attachments.length);
@@ -604,15 +611,16 @@ export function Room() {
         const { showToast } = await import('../components/Toast.js');
         showToast(`Only ${MAX_ATTACHMENTS_PER_MESSAGE} attachments per message`);
       }
-      const prepared: MessageAttachment[] = [];
       for (const file of selected) {
-        prepared.push(await uploadAttachment(file, code));
+        const prepared = await uploadAttachment(file, code);
+        // Keep each successful upload even if a later file fails.
+        setAttachments(prev => [...prev, prepared]);
       }
-      setAttachments(prev => [...prev, ...prepared].slice(0, MAX_ATTACHMENTS_PER_MESSAGE));
     } catch (e) {
       const { showToast } = await import('../components/Toast.js');
       showToast(e instanceof Error ? e.message : 'Attachment failed');
     } finally {
+      uploadInFlight.current = false;
       setAttachBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
@@ -1266,10 +1274,10 @@ export function Room() {
                     </div>
                     <button
                       onClick={send}
-                      disabled={sending || (!text.trim() && attachments.length === 0)}
+                      disabled={sending || attachBusy || (!text.trim() && attachments.length === 0)}
                       className="min-h-[40px] sm:min-h-[36px] min-w-[78px] sm:min-w-[64px] bg-accent text-white px-5 sm:px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5"
                     >
-                      <span>{sending ? 'Sending…' : 'Send'}</span>
+                      <span>{sending ? 'Sending…' : attachBusy ? 'Uploading…' : 'Send'}</span>
                       <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
                         <path d="M1.5 1.5l13 6.5-13 6.5 2-6.5-2-6.5zm3.2 6.5h5.8-5.8z" />
                       </svg>
