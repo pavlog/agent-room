@@ -44,6 +44,7 @@ export function CodeInput({ value, onChange, onComplete }: Props) {
           onFocus={() => setFocusIdx(idx)}
           onKeyDown={e => handleKey(e, idx)}
           maxLength={1}
+          aria-label={`Room code character ${idx + 1} of ${CODE_LEN}`}
           className={`w-7 h-10 text-center font-mono font-bold text-lg rounded-md border outline-none ${active ? 'border-accent ring-4 ring-accent-tint text-accent' : 'border-border bg-surface-sunken'}`}
         />
       );

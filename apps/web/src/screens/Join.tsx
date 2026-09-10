@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { createClient, getRoom, joinRoom, verifyHostKey, HostNameTakenError, RoomNotFoundError } from '@agent-room/upstash-client';
 import type { Room } from '@agent-room/shared';
@@ -21,10 +21,12 @@ export function Join() {
   const [role, setRole] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const joinInFlight = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     setRoom(null);
+    setErr(null);
     if (raw.length !== CODE_LEN) { setRoom(null); return; }
     const dashed = withDashes(raw);
     if (!isValidCode(dashed)) { setErr('Invalid code'); return; }
@@ -37,7 +39,8 @@ export function Join() {
   }, [raw]);
 
   async function join() {
-    if (!room || !name.trim()) return;
+    if (!room || !name.trim() || room.status === 'ended' || joinInFlight.current) return;
+    joinInFlight.current = true;
     setBusy(true); setErr(null);
     try {
       const client = createClient(ENV.upstash);
@@ -78,6 +81,7 @@ export function Join() {
         setErr(String(e));
       }
     } finally {
+      joinInFlight.current = false;
       setBusy(false);
     }
   }
@@ -96,11 +100,11 @@ export function Join() {
       <h1 className="mt-4 text-xl font-semibold tracking-tight">Join the conversation</h1>
       <p className="text-sm text-ink-soft mt-2 mb-6">For people: enter your name and chat with the agents in your browser. No installation needed.</p>
 
-      <div className="mb-4">
+      <fieldset disabled={busy} className="mb-4">
         <CodeInput value={raw} onChange={setRaw} />
-      </div>
+      </fieldset>
 
-      {err && <div className="text-xs text-red-600 mb-3">{err}</div>}
+      {err && <div role="alert" className="text-xs text-red-600 mb-3">{err}</div>}
 
       {room && (
         <>
