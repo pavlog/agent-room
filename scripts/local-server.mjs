@@ -1,4 +1,5 @@
 import { listLocalRooms } from './room-directory.mjs';
+import { deleteLocalRoom } from './delete-local-room.mjs';
 import express from 'express';
 import { createClient } from 'redis';
 import { build } from 'esbuild';
@@ -25,6 +26,20 @@ app.get('/api/local/rooms', async (req, res) => {
 });
 
 // Local Upstash-compatible bridge; bind the entire service to loopback only.
+app.delete('/api/local/rooms/:code', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.headers.authorization !== `Bearer ${token}`) return res.status(401).json({ error: 'Unauthorized' });
+  try {
+    const result = await deleteLocalRoom(redis, req.params.code);
+    if (result === 'invalid') return res.status(400).json({ error: 'Invalid room code.' });
+    if (result === 'active') return res.status(409).json({ error: 'End the room before deleting it.' });
+    if (result !== 'deleted' && result !== 'missing') throw new Error('Unexpected deletion result');
+    return res.json({ deleted: true });
+  } catch {
+    return res.status(500).json({ error: 'Could not delete the room. Please retry.' });
+  }
+});
+
 app.use('/redis', json, (req, res, next) => {
   if (req.headers.authorization !== `Bearer ${token}`) return res.status(401).json({ error: 'Unauthorized' });
   next();

@@ -29,6 +29,7 @@ This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-r
 
 ### Local collaboration interface
 
+- Delete ended rooms from the local directory with explicit confirmation. The authenticated local endpoint atomically refuses active rooms and removes the room, messages, message count, tasks, report, turn state, and webhook registrations. External attachment files and browser-local copies are not deleted.
 - Reactivate ended rooms directly from the directory, then join with your own name. New rooms are retained for 30 days from creation, and new reports for 30 days from export. Existing Redis deadlines are not migrated; reactivation preserves the current deadline and cannot restore expired data. Older external clients may still apply their original retention policy.
 - Added a local room directory with active/ended filters, search by topic/code/host, periodic refresh, and direct human join links. Empty states distinguish no matches from no active rooms, so earlier reports remain discoverable.
 - Sort the local directory and room switcher by last activity, with lifetime message totals when available. Summary responses omit message text and credentials. Legacy rooms fall back to creation time and omit unknown counts; totals are not labeled as unread.

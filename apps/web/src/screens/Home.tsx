@@ -19,6 +19,28 @@ export function Home() {
   const [query, setQuery] = useState('');
   const [reactivating, setReactivating] = useState<string | null>(null);
   const reactivationPending = useRef(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const deletedCodes = useRef(new Set<string>());
+  async function removeRoom(roomCode: string) {
+    if (reactivationPending.current) return;
+    if (!window.confirm(`Permanently delete room ${roomCode}, including its messages, tasks, and report? This cannot be undone. Uploaded files in external storage are not removed.`)) return;
+    reactivationPending.current = true;
+    setDeleting(roomCode);
+    try {
+      const response = await fetch(`/api/local/rooms/${roomCode}`, {
+        method: 'DELETE', headers: { Authorization: `Bearer ${ENV.upstash.token}` },
+      });
+      if (!response.ok) throw new Error();
+      deletedCodes.current.add(roomCode);
+      setRooms(previous => previous.filter(room => room.code !== roomCode));
+      setError('');
+    } catch {
+      setError('Could not delete the room. It must be ended first. Refresh the list and retry.');
+    } finally {
+      reactivationPending.current = false;
+      setDeleting(null);
+    }
+  }
   async function resumeRoom(roomCode: string) {
     if (reactivationPending.current) return;
     reactivationPending.current = true;
@@ -47,7 +69,7 @@ export function Home() {
         });
         if (!response.ok) throw new Error('Cannot load rooms. Check that the local server is running.');
         const data = await response.json();
-        const parsedRooms = parseRoomDirectory(data);
+        const parsedRooms = parseRoomDirectory(data).filter(room => !deletedCodes.current.has(room.code));
         if (canApply()) { settledSequence = request; setRooms(parsedRooms); setError(''); }
       } catch (err) {
         if (canApply()) { settledSequence = request; setError(err instanceof Error ? err.message : 'Cannot load rooms.'); }
@@ -123,11 +145,15 @@ export function Home() {
                 <p className="mt-2 text-xs text-ink-soft"><span className="font-mono">{room.code}</span>{room.expiresAt && ` · Expires ${new Date(room.expiresAt).toLocaleString()}`}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {room.status === 'ended' && <button type="button" disabled={reactivating !== null} onClick={() => void resumeRoom(room.code)}
+                {room.status === 'ended' && <button type="button" disabled={reactivating !== null || deleting !== null} onClick={() => void resumeRoom(room.code)}
                   className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   {reactivating === room.code ? 'Reactivating…' : 'Reactivate and join'}
                 </button>}
                 <Link to={room.status === 'active' ? `/j/${room.code}` : `/r/${room.code}/report`} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">{room.status === 'active' ? 'Join chat →' : 'View report →'}</Link>
+                {room.status === 'ended' && <button type="button" disabled={reactivating !== null || deleting !== null} onClick={() => void removeRoom(room.code)}
+                  className="min-h-11 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">
+                  {deleting === room.code ? 'Deleting…' : 'Delete room'}
+                </button>}
               </div>
             </article>
           ))}</div>}

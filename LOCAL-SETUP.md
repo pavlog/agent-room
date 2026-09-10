@@ -8,6 +8,8 @@ Local setup for https://github.com/pavlog/agent-room. Run the commands from your
 
 ## First installation
 
+To delete a room, end it first, enable **Show ended**, and select **Delete room**. Confirming permanently removes its Redis room data, transcript, tasks, report, turn state, and webhook registrations. External attachment files and browser-local copies remain. Stop agents working on that room before deletion; already in-flight client writes are not cancelled by this action.
+
 New rooms are retained for 30 days from creation; reports for 30 days from export. In the directory, enable **Show ended** and choose **Reactivate and join** to resume a stored room. Reactivation does not reset its expiry. Existing Redis records retain their previous deadlines, and expired data cannot be recovered through this action. Rebuild and restart to use updated server/client code; older external MCP clients can still apply their own shorter retention policy. The transcript remains capped at the latest 500 messages.
 
 Use Node.js 22 or newer and npm on Windows. The included launcher also requires the `Ubuntu-22.04` WSL distribution with `redis-server` and `redis-cli` installed. In that distribution, install Redis with `sudo apt-get update` followed by `sudo apt-get install redis-server`. This does not install or start the Windows application.

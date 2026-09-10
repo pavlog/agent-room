@@ -14,7 +14,7 @@
   "scripts": {
     "test": "npm -ws run test --if-present",
     "test:api": "vitest run --dir api",
-    "test:local": "vitest run scripts/room-directory.test.ts scripts/setup-local.test.ts",
+    "test:local": "vitest run scripts/room-directory.test.ts scripts/setup-local.test.ts scripts/delete-local-room.test.ts",
     "setup:local": "node scripts/setup-local.mjs",
     "build": "npm -ws run build --if-present",
     "build:ordered": "npm run build -w packages/shared && npm run build -w packages/upstash-client && npm run build -w packages/room-persistence && npm run build -w apps/web",
