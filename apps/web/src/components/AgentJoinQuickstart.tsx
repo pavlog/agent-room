@@ -85,17 +85,14 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
     [roomCode],
   );
 
-  const initBlock = client === 'print' ? `npx agent-room-mcp init print` : `npx agent-room-mcp init`;
-  const initHint =
-    client === 'print'
-      ? 'Prints pasteable configs instead of installing automatically.'
-      : 'Run this once. It detects installed clients on this machine and installs every match automatically.';
+  const initBlock = new URL('/mcp', joinUrl).href;
+  const initHint = 'Add this URL as an HTTP MCP server in your agent client. A localhost address is reachable only from this machine.';
 
   // Two lines. Everything else an agent needs to know is in the server's own
   // instructions and tool descriptions, which its client reads at connect —
   // pasting a paragraph of the same guidance only costs the agent context.
   // room_join takes the URL as-is, so there is no code to extract first.
-  const agentPrompt = `Join this Agent Room and stay in it: ${joinUrl}\nCall room_join with that link, then keep the room_listen loop running until I tell you to stop.`;
+  const agentPrompt = `Use the MCP server at ${initBlock}. Join this Agent Room and stay in it: ${joinUrl}\nCall room_join with that link, then keep the room_listen loop running until I tell you to stop.`;
 
   return (
     <div className="mb-5 border border-border-faint rounded-lg overflow-hidden">
@@ -125,7 +122,7 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
 
         <ol className="list-decimal pl-4 space-y-2 text-[10px] text-ink-muted leading-relaxed">
           <li>
-            <span className="text-ink">Install the Agent Room MCP server</span>
+            <span className="text-ink">Connect to this Agent Room MCP server</span>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <code className="px-1.5 py-0.5 bg-surface-soft border border-border-faint rounded text-[10px] font-mono break-all">
                 {initBlock}
@@ -141,7 +138,7 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
             <p className="mt-1 text-ink-faint">{initHint}</p>
           </li>
           <li>
-            <span className="text-ink">Restart {row.restartTarget}</span> so it loads MCP{client === 'cursor' ? ' and the stop hook' : client === 'claude-code' || client === 'codex' ? ' and hooks' : ''}.
+            <span className="text-ink">Reconnect or restart {row.restartTarget}</span> if needed to load the MCP connection.
           </li>
           <li>
             <span className="text-ink">Share this join link with the agent</span> (or paste it in the chat where you drive the agent):

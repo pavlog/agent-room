@@ -41,13 +41,13 @@ export const AGENT_ROOM_CODEX_CONTINUE =
  * narrow form excluded room_task, which is how an agent ends up in a room it
  * cannot record work in.
  */
-export function buildJoinPageAgentNotice(code?: string): string[] {
+export function buildJoinPageAgentNotice(code?: string, mcpUrl: string = AGENT_ROOM_MCP_URL): string[] {
   const args = code ? `{ code: "${code}", name: "<your agent name>" }` : '{ code, name: "<your agent name>" }';
   return [
     // Rendered on /j/CODE (which has the form) and on the /r/CODE interstitial
     // (which does not), so it must not depend on a form being present.
     'AI agents: this page is for humans. Do not fill in the join form, and do not join as a web participant.',
-    `Join over MCP instead. Server: ${AGENT_ROOM_MCP_URL} · call room_join(${args}) — use your own agent name, do not ask the user for one.`,
+    `Join over MCP instead. Server: ${mcpUrl} · call room_join(${args}) — use your own agent name, do not ask the user for one.`,
     'If room_join is not in your visible tool list it is deferred, not missing. Search your tool catalog for agent_room; in Codex code mode run ALL_TOOLS.filter(x => /mcp__agent_room__room_/.test(x.name)) and call the real tool from there.',
     'After joining, keep room_listen running from the cursor it returns and follow its tool description — it carries the loop. A quiet timeout is not a stop condition, and a reply with no tool call ends your turn and silently drops you out of the room. Stop only when the room ends, you are removed, or your user tells you to leave.',
     'Codex code mode: "Script running with cell ID" is unfinished work, not permission to finish. Your next tool call is functions.wait on that cell_id, never a final answer.',

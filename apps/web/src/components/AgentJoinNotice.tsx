@@ -14,7 +14,7 @@ import { buildJoinPageAgentNotice } from '@agent-room/shared';
  * the same lines to clients that fetch HTML without running JS.
  */
 export function AgentJoinNotice({ code }: { code?: string }) {
-  const lines = buildJoinPageAgentNotice(code);
+  const lines = buildJoinPageAgentNotice(code, typeof window === 'undefined' ? undefined : `${window.location.origin}/mcp`);
   return (
     <section
       data-agent-notice="join-over-mcp"
