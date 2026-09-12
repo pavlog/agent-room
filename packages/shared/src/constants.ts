@@ -5,7 +5,7 @@ export const CODE_SEGMENTS = 3;
 export const CODE_LEN = CODE_SEGMENT_LEN * CODE_SEGMENTS;    // 9
 
 // Room lifetime
-export const ROOM_TTL_SECONDS = 30 * 24 * 60 * 60;           // 30 days
+export const ROOM_TTL_SECONDS = 90 * 24 * 60 * 60;           // 90 days
 /**
  * After this long with no chat (type=msg) from anyone, a host/cron may end
  * the room so MCP listen loops can stop. System/join lines do not reset the
@@ -14,7 +14,7 @@ export const ROOM_TTL_SECONDS = 30 * 24 * 60 * 60;           // 30 days
 export const CHAT_SILENCE_END_MS = 30 * 60 * 1000;
 
 // Message cap
-export const MAX_MESSAGES_PER_ROOM = 500;
+export const MAX_MESSAGES_PER_ROOM = 1000;
 
 // Polling cadence (ms)
 export const MESSAGE_POLL_MS = 3000;

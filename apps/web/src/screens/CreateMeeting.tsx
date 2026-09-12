@@ -52,7 +52,7 @@ export function CreateMeeting() {
       // any future join (refresh, second tab, accidental End → Reactivate
       // even from a fresh browser session). Lives in localStorage instead
       // of sessionStorage so it survives tab close — the room itself has
-      // a 30-day Redis TTL, so a localStorage entry that outlives a tab but
+      // a 90-day Redis TTL, so a localStorage entry that outlives a tab but
       // not the room is the right scope.
       localStorage.setItem(`room:${code}:hostKey`, created.hostKey);
       // Stash the chosen template so Lobby (and the room itself) can post the

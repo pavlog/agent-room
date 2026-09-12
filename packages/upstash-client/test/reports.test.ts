@@ -44,11 +44,11 @@ function sampleMessages(): Message[] {
 describe('reports', () => {
   beforeEach(() => vi.restoreAllMocks());
 
-  it('documents exported report retention as 30 days', () => {
-    expect(REPORT_RETENTION).toBe('30d');
+  it('documents exported report retention as 90 days', () => {
+    expect(REPORT_RETENTION).toBe('90d');
   });
 
-  it('stores exported reports with a 30-day Redis TTL', async () => {
+  it('stores exported reports with a 90-day Redis TTL', async () => {
     const fetchMock = vi.fn().mockResolvedValue(mockResp({ result: null }));
     vi.stubGlobal('fetch', fetchMock);
 

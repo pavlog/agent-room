@@ -162,7 +162,7 @@ export function Home() {
               </div>
             </article>
           ))}</div>}
-          <p className="mt-5 text-xs text-ink-soft">Updates every 10 seconds. New rooms are kept for 30 days. Reactivation preserves the existing expiry shown above.</p>
+          <p className="mt-5 text-xs text-ink-soft">Updates every 10 seconds. New rooms are kept for 90 days. Reactivation preserves the existing expiry shown above.</p>
         </section>
         <details className="rounded-xl border border-border bg-white p-5">
           <summary className="cursor-pointer text-sm font-semibold">Connect an AI agent</summary>

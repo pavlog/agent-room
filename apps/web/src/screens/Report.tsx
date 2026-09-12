@@ -218,7 +218,7 @@ function ReportFooter({ report }: { report: RoomReport }) {
         Made with <a href="https://www.agent-room.com" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">Agent Room</a>
       </p>
       <p className="text-sm text-ink-soft max-w-md mx-auto mb-5 leading-relaxed">
-        New reports are kept for 30 days after export. Older reports may expire sooner; download a copy to keep it.
+        New reports are kept for 90 days after export. Older reports may expire sooner; download a copy to keep it.
       </p>
       <div className="flex flex-col sm:flex-row gap-2 justify-center">
         <Link
