@@ -1,6 +1,7 @@
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 . (Join-Path $PSScriptRoot 'scripts/local-process.ps1')
+. (Join-Path $PSScriptRoot 'scripts/local-redis.ps1')
 $listeners = @(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue)
 if ($listeners.Count) {
     if (-not (Test-Path '.local/server-process.json')) { throw 'Port 5173 is occupied by an unverified process. Nothing was started or stopped.' }
@@ -11,7 +12,13 @@ if ($listeners.Count) {
     if (($listeners | Where-Object { $_.OwningProcess -ne $serverId }) -or -not (Test-LocalServerIdentity $info $record $PSScriptRoot)) {
         throw 'Port 5173 belongs to an unverified process or another checkout. Nothing was started or stopped.'
     }
-    $health = Invoke-RestMethod 'http://127.0.0.1:5173/health' -TimeoutSec 2
+    Start-LocalRedis
+    $health = $null
+    for ($retry = 0; $retry -lt 15; $retry++) {
+        try { $health = Invoke-RestMethod 'http://127.0.0.1:5173/health' -TimeoutSec 2 } catch {}
+        if ($health.status -eq 'ok' -and $health.redis -eq 'PONG') { break }
+        Start-Sleep -Seconds 1
+    }
     if ($health.status -eq 'ok' -and $health.redis -eq 'PONG') {
         Write-Output 'Agent Room is already running at http://localhost:5173'
         exit 0
@@ -23,8 +30,7 @@ foreach ($required in @('.env.local', 'apps/web/.env.local', 'apps/web/dist/inde
 }
 $nodeVersion = & (Get-Command node).Source -p 'process.versions.node'
 if ($LASTEXITCODE -ne 0 -or ([version]$nodeVersion).Major -lt 22) { throw 'Node.js 22 or newer is required.' }
-wsl -d Ubuntu-22.04 -- sh -lc 'mkdir -p ~/.local/share/agent-room; timeout 3 redis-cli -p 6389 ping >/dev/null 2>&1 || redis-server --bind 127.0.0.1 --port 6389 --daemonize yes --appendonly yes --dir ~/.local/share/agent-room --pidfile ~/.local/share/agent-room/redis.pid --logfile ~/.local/share/agent-room/redis.log'
-if ($LASTEXITCODE -ne 0) { throw 'Could not start local Redis in Ubuntu-22.04' }
+Start-LocalRedis
 New-Item -ItemType Directory -Force -Path '.local' | Out-Null
 $scriptPath = Join-Path $PSScriptRoot 'scripts/local-server.mjs'
 $serverProcess = Start-Process -FilePath (Get-Command node).Source -ArgumentList ('"' + $scriptPath + '"') -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -RedirectStandardOutput '.local/server.log' -RedirectStandardError '.local/server-error.log' -PassThru

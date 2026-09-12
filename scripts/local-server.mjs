@@ -11,7 +11,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 process.loadEnvFile(path.join(root, '.env.local'));
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 if (!token) throw new Error('Set UPSTASH_REDIS_REST_TOKEN in .env.local');
-const redis = createClient({ url: process.env.LOCAL_REDIS_URL || 'redis://127.0.0.1:6389' });
+const redis = createClient({ url: process.env.LOCAL_REDIS_URL || 'redis://127.0.0.1:6389', disableOfflineQueue: true });
 redis.on('error', error => console.error('Redis:', error.message));
 await redis.connect();
 const app = express();
@@ -21,8 +21,13 @@ const json = express.json({ limit: '12mb' });
 app.get('/api/local/rooms', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.headers.authorization !== `Bearer ${token}`) return res.status(401).json({ error: 'Unauthorized' });
-  const rooms = await listLocalRooms(redis);
-  res.json({ rooms });
+  try {
+    if (!redis.isReady) throw new Error('Storage disconnected');
+    const rooms = await listLocalRooms(redis);
+    res.json({ rooms });
+  } catch {
+    res.status(503).json({ error: 'Room storage is unavailable. Run start.bat to restore Redis.' });
+  }
 });
 
 // Local Upstash-compatible bridge; bind the entire service to loopback only.

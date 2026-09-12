@@ -72,7 +72,9 @@ export function Home() {
           headers: { Authorization: `Bearer ${ENV.upstash.token}` },
           cache: 'no-store', signal: controller.signal,
         });
-        if (!response.ok) throw new Error('Cannot load rooms. Check that the local server is running.');
+        if (!response.ok) throw new Error(response.status === 503
+          ? 'Room storage is unavailable. Run start.bat to restore Redis, then refresh. Your room count is unknown until storage reconnects.'
+          : 'Cannot load rooms. Check the local server and its access settings, then refresh.');
         const data = await response.json();
         const parsedRooms = parseRoomDirectory(data).filter(room => !deletedCodes.current.has(room.code));
         if (canApply()) { settledSequence = request; setRooms(parsedRooms); setError(''); }
@@ -117,9 +119,9 @@ export function Home() {
         </form>
         <section aria-label="Rooms on this server" className="rounded-xl border border-border bg-white p-5 sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-            <h2 className="font-semibold">{showEnded ? 'All rooms' : 'Active rooms'} <span className="text-ink-soft">({candidates.length})</span></h2>
+            <h2 className="font-semibold">{showEnded ? 'All rooms' : 'Active rooms'} <span className="text-ink-soft">({loading || error ? '—' : candidates.length})</span></h2>
             <div className="flex flex-wrap items-center gap-4 text-sm">
-              <label className="flex items-center gap-2"><input type="checkbox" checked={showEnded} onChange={e => setShowEnded(e.target.checked)} />Show ended ({ended.length})</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked={showEnded} onChange={e => setShowEnded(e.target.checked)} />Show ended ({loading || error ? '—' : ended.length})</label>
               <button onClick={() => setRefresh(value => value + 1)} className="text-accent font-semibold">Refresh</button>
             </div>
           </div>

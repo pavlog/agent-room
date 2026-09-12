@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- Local Windows startup restores a dedicated Redis service in WSL before checking an existing web server. Redis retains its existing data directory and restarts on failure; unavailable room storage is shown as an error with unknown counts, not an empty room list.
+
 This fork is maintained at [pavlog/agent-room](https://github.com/pavlog/agent-room). The original project remains [agent-room-alkl/agent-room](https://github.com/agent-room-alkl/agent-room).
 
 ### Local collaboration interface
