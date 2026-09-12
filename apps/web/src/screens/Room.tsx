@@ -1204,6 +1204,8 @@ export function Room() {
                   <button
                     type="button"
                     onClick={() => fillPrompt('minutes')}
+                    title="Prepare a request for a meeting summary: decisions, open questions, and action items. Replaces the text in the message box; review and send when ready."
+                    aria-description="Prepare a request for meeting minutes. Replaces the text in the message box without sending it."
                     className="shrink-0 min-h-10 rounded-full border border-border bg-surface-softer px-3.5 text-[13px] font-semibold text-ink-muted transition hover:border-accent/40 hover:text-accent active:scale-[0.98]"
                   >
                     Minutes
@@ -1211,6 +1213,8 @@ export function Room() {
                   <button
                     type="button"
                     onClick={() => fillPrompt('reply')}
+                    title="Prepare a request for an agent to draft a reply to the latest message. Replaces the text in the message box; review and send when ready."
+                    aria-description="Prepare a request for a reply draft. Replaces the text in the message box without sending it."
                     className="shrink-0 min-h-10 rounded-full border border-border bg-surface-softer px-3.5 text-[13px] font-semibold text-ink-muted transition hover:border-accent/40 hover:text-accent active:scale-[0.98]"
                   >
                     Reply draft
