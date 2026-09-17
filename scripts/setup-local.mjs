@@ -12,7 +12,7 @@ export function setupLocal(root) {
     throw new Error('Local settings already exist. Nothing was changed. Review both environment files manually to preserve existing credentials.');
   }
   const token = randomBytes(32).toString('hex');
-  const server = `# Generated local settings. Never commit this file.\nLOCAL_REDIS_URL=redis://127.0.0.1:6389\nAGENT_ROOM_WEBHOOKS=loopback\nUPSTASH_REDIS_REST_URL=http://127.0.0.1:5173/redis\nUPSTASH_REDIS_REST_TOKEN=${token}\n`;
+  const server = `# Generated local settings. Never commit this file.\nLOCAL_REDIS_URL=redis://127.0.0.1:6389\nAGENT_ROOM_WEBHOOKS=loopback\nAGENT_ROOM_MCP_CORS=same-origin\nUPSTASH_REDIS_REST_URL=http://127.0.0.1:5173/redis\nUPSTASH_REDIS_REST_TOKEN=${token}\n`;
   const web = `# Generated local settings. Never commit this file.\n# Relative on purpose: the bridge must be same-origin as the page, which\n# may be opened at either localhost:5173 or 127.0.0.1:5173.\nVITE_UPSTASH_REDIS_REST_URL=/redis\nVITE_UPSTASH_REDIS_REST_TOKEN=${token}\nVITE_LOCAL_ONLY=true\n`;
   writeFileSync(serverFile, server, { flag: 'wx', mode: 0o600 });
   try { writeFileSync(webFile, web, { flag: 'wx', mode: 0o600 }); }

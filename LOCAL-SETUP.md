@@ -195,13 +195,9 @@ none of them on by default:
   URI so it can be attached, which is a browser request to whatever host you pasted.
   User-initiated, and the upload that would follow is disabled anyway.
 
-Also note the MCP endpoint is unauthenticated and sends `Access-Control-Allow-Origin: *`
-(`applyCors` in `api/mcp.ts`), which is what lets remote MCP clients reach a hosted
-deployment. On a local install it means any web page you visit while the server is
-running can reach `http://localhost:5173/mcp` from your browser and create, read, or
-post to rooms. The Redis bridge is not exposed this way — it requires the bearer token
-and sends no CORS headers, so cross-origin reads fail. Stop the server when you are not
-using it, and treat room contents as readable by any site you visit while it runs.
+The Redis bridge is not reachable from a web page: it requires the bearer token and
+sends no CORS headers, so a cross-origin read fails. The MCP endpoint needs its own
+setting, below.
 
 ## License
 
@@ -254,3 +250,39 @@ can happen:
 
 `api/webhookMode.test.ts` covers the modes, the always-blocked addresses, the alias path,
 and the tool-surface changes.
+
+## Who may reach /mcp from a browser
+
+`AGENT_ROOM_MCP_CORS` in `.env.local` controls this. `setup:local` writes `same-origin`.
+
+| Value | Behaviour |
+|---|---|
+| `same-origin` | only this server's own origin; a request carrying any other site's `Origin` gets 403 before any tool runs |
+| `any` | `Access-Control-Allow-Origin: *` — the original rule, which browser-based MCP clients need against a real deployment |
+
+Unset means `any`, so a deployment that never heard of the variable behaves as before.
+An unrecognized value means `same-origin`.
+
+Why a local install needs this: the endpoint takes no bearer token on purpose — the room
+code in the tool arguments is the credential — and it listens on loopback, which the
+browser on this machine can reach. Under `any`, a page on any site you visit can call it
+*and* read the replies. Verified before the change: a request with
+`Origin: https://evil.example` created a room and was handed the hostKey.
+
+Non-browser clients are unaffected, which is what makes the strict mode cheap. Claude
+Code, Cursor and Codex send no `Origin` header and ignore these headers entirely, so
+they are allowed through untouched. Refusing a foreign `Origin` outright, rather than
+only withholding the header, is what the MCP specification recommends for local servers:
+it also covers DNS rebinding and request shapes that skip the preflight. Browsers attach
+`Origin` on cross-origin requests themselves and page scripts cannot forge it.
+
+Both loopback spellings on the configured port are accepted, since the page may be opened
+at either. A different port, a different scheme, or `null` (a sandboxed iframe or a
+`file://` page) is refused.
+
+What this does **not** cover: another program running on this machine can still reach
+`http://127.0.0.1:5173/mcp` directly, because it sends no `Origin` and any local process
+can open a local port. That is inherent to a loopback service without authentication —
+the protection here is against pages in your browser, not against local software.
+
+`api/mcpCors.test.ts` covers the modes, the accepted origin set, and the refusals.

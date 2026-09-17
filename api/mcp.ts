@@ -63,8 +63,78 @@ const MCP_LANDING_HTML = `<!doctype html>
 </body>
 </html>`;
 
+export type McpCorsMode = 'any' | 'same-origin';
+
+/**
+ * Who may call this endpoint from a browser.
+ *
+ *   any         (default, hosted) — `Access-Control-Allow-Origin: *`, which
+ *               browser-based MCP clients need to reach a deployment
+ *   same-origin (local installs)  — only this server's own origin, and a
+ *               request carrying any other site's Origin is refused outright
+ *
+ * Why it matters on a local install: the endpoint takes no bearer token (see
+ * the note in the handler — the room code is the credential), and it listens
+ * on loopback, which your browser can reach. With `*` any page you visit can
+ * both call it and read the answers. Non-browser clients — Claude Code,
+ * Cursor, Codex — never send Origin and ignore these headers, so the strict
+ * mode costs them nothing. Refusing a foreign Origin, rather than only
+ * withholding the header, is what the MCP spec recommends for local servers:
+ * it stops DNS rebinding and any request shape that skips the preflight.
+ *
+ * Unset means `any`, so a deployment that never heard of this variable
+ * behaves as before. An unrecognized value means `same-origin`.
+ */
+export function mcpCorsMode(): McpCorsMode {
+  const raw = (process.env.AGENT_ROOM_MCP_CORS ?? '').trim().toLowerCase();
+  if (!raw) return 'any';
+  if (raw === 'any' || raw === 'same-origin') return raw;
+  console.warn(`[mcp] unrecognized AGENT_ROOM_MCP_CORS=${raw}; allowing this origin only`);
+  return 'same-origin';
+}
+
+/** This server's own origins. Loopback answers to two spellings on one port. */
+export function allowedMcpOrigins(base: string = PUBLIC_BASE_URL): Set<string> {
+  const out = new Set<string>();
+  let url: URL;
+  try { url = new URL(base); } catch { return out; }
+  out.add(url.origin);
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    const port = url.port ? `:${url.port}` : '';
+    out.add(`${url.protocol}//localhost${port}`);
+    out.add(`${url.protocol}//127.0.0.1${port}`);
+  }
+  return out;
+}
+
+/**
+ * Applies the CORS headers and reports whether the request may proceed.
+ * A missing Origin is a non-browser client and is always allowed through.
+ */
+export function applyMcpCors(
+  origin: string | undefined,
+  res: VercelResponse,
+  mode: McpCorsMode = mcpCorsMode(),
+  base: string = PUBLIC_BASE_URL,
+): boolean {
+  if (mode === 'same-origin') {
+    res.setHeader('Vary', 'Origin');
+    if (origin === undefined) return true;
+    if (!allowedMcpOrigins(base).has(origin)) return false;
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    applyCorsRest(res);
+    return true;
+  }
+  applyCors(res);
+  return true;
+}
+
 function applyCors(res: VercelResponse): void {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  applyCorsRest(res);
+}
+
+function applyCorsRest(res: VercelResponse): void {
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, DELETE, OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -75,7 +145,16 @@ function applyCors(res: VercelResponse): void {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse): Promise<void> {
-  applyCors(res);
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+  if (!applyMcpCors(origin, res)) {
+    // A page on another site tried to reach a local server. Refuse before any
+    // tool runs — withholding the header alone would still let the call happen.
+    res.status(403).json({
+      error: 'forbidden_origin',
+      message: 'This server only accepts MCP requests from its own origin. Configure your MCP client with the server URL directly.',
+    });
+    return;
+  }
   if (req.method === 'OPTIONS') {
     res.status(204).end();
     return;
