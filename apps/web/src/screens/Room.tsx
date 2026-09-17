@@ -745,6 +745,7 @@ export function Room() {
             </div>
             <button
               onClick={() => copyText(joinUrl, 'Invite link copied')}
+              title="Copy this room's join link. Anyone with it can join and speak, and it only resolves on this computer."
               className="text-[11px] sm:text-[10px] font-semibold text-accent bg-accent-tint px-2.5 py-1.5 sm:px-2 sm:py-1 rounded-md hover:bg-accent/20 active:scale-95 transition"
             >
               Share
@@ -774,6 +775,7 @@ export function Room() {
                 role="tab"
                 aria-selected={active}
                 onClick={() => setMobilePanel(key)}
+                title={`Show the ${label.toLowerCase()} panel. On a narrow screen only one panel is visible at a time.`}
                 className={`min-h-11 rounded-lg px-2 text-[13px] font-semibold flex items-center justify-center gap-1.5 transition active:scale-[0.98] ${
                   active
                     ? 'bg-accent text-white shadow-sm'
@@ -806,6 +808,7 @@ export function Room() {
               </div>
               <button
                 onClick={() => copyText(joinUrl, 'Invite link copied')}
+                title="Copy this room's join link for a human. For an agent, use the MCP setup in the disclosure below instead."
                 className="mt-3 w-full min-h-10 sm:min-h-8 text-[13px] sm:text-xs font-semibold text-accent bg-accent-tint px-3 rounded-lg transition active:scale-[0.98] hover:bg-accent/20"
               >
                 Copy invite link
@@ -874,6 +877,7 @@ export function Room() {
                               type="button"
                               onClick={() => { void handleSkipCurrent(); }}
                               disabled={modeBusy}
+                              title="Force the current speaker's turn to end so the next one can go. Host only, and only useful in sequential or moderator mode."
                               className="h-10 sm:h-8 rounded-lg border border-amber-200 bg-amber-50 px-3 text-[12px] sm:text-[11px] font-semibold text-amber-700 transition active:scale-[0.98] hover:bg-amber-100 disabled:opacity-60"
                             >
                               Skip
@@ -943,7 +947,9 @@ export function Room() {
                           {canAsk && (
                             <button
                               onClick={() => { void handleAskAgent(p); }}
-                              title={`Ask ${p.name}`}
+                              title={replyMode === 'open'
+                                ? `Put "@${p.name}" in the message box. Nothing is sent until you press Send.`
+                                : `Hand ${p.name} the next speaking slot in the current turn. Send a message first — there has to be a turn to grant.`}
                               aria-label={`Ask ${p.name}`}
                               disabled={modeBusy}
                               className="flex h-10 min-w-10 sm:h-8 sm:min-w-8 items-center justify-center rounded-lg border border-accent-tint-border bg-accent-tint px-2.5 text-[12px] sm:text-[11px] font-semibold text-accent transition hover:bg-accent-tint-border active:scale-[0.98] disabled:opacity-60"
@@ -998,12 +1004,13 @@ export function Room() {
               {!ended && room.createdBy === self.name && (
                 <button
                   onClick={handleEndMeeting}
+                  title="End the meeting for everyone. The room becomes read-only and agents stop their listen loops. You can reactivate it later; the transcript is kept."
                   className="flex-1 min-h-10 sm:min-h-8 text-[13px] sm:text-xs font-semibold text-red-600 bg-red-50 px-3 rounded-lg transition active:scale-[0.98] hover:bg-red-100"
                 >
                   End
                 </button>
               )}
-              <button onClick={() => navigate('/')} className="flex-1 min-h-10 sm:min-h-8 text-[13px] sm:text-xs font-semibold text-ink-muted bg-surface-softer px-3 rounded-lg transition active:scale-[0.98]">
+              <button onClick={() => navigate('/')} title="Go back to the room list. This leaves the room open and does not end it." className="flex-1 min-h-10 sm:min-h-8 text-[13px] sm:text-xs font-semibold text-ink-muted bg-surface-softer px-3 rounded-lg transition active:scale-[0.98]">
                 Home
               </button>
             </div>
@@ -1051,6 +1058,7 @@ export function Room() {
                     <button
                       type="button"
                       onClick={() => copyText(joinUrl, 'Invite link copied')}
+                      title="Copy the join link so someone — or an agent — can come in. The room stays empty until then."
                       className="mt-4 min-h-10 rounded-lg bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition active:scale-[0.98] hover:opacity-90"
                     >
                       Copy invite link
@@ -1064,10 +1072,10 @@ export function Room() {
                   <p className="text-sm font-semibold text-ink mb-1">No activity for 1 hour</p>
                   <p className="text-xs text-ink-soft mb-3">Meeting will close in <span className="font-bold text-red-600">{countdown}s</span></p>
                   <div className="flex gap-2 justify-center">
-                    <button onClick={dismissIdlePrompt} className="px-4 py-1.5 bg-accent text-white text-xs font-semibold rounded-lg">
+                    <button onClick={dismissIdlePrompt} title="Keep the room open and reset the idle countdown." className="px-4 py-1.5 bg-accent text-white text-xs font-semibold rounded-lg">
                       Keep open
                     </button>
-                    <button onClick={handleEndMeeting} className="px-4 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-lg border border-red-200">
+                    <button onClick={handleEndMeeting} title="End the meeting now instead of waiting for the countdown. The room becomes read-only; the transcript is kept." className="px-4 py-1.5 bg-red-50 text-red-600 text-xs font-semibold rounded-lg border border-red-200">
                       End now
                     </button>
                   </div>
@@ -1092,6 +1100,7 @@ export function Room() {
                   <button
                     onClick={handleExportReport}
                     disabled={reportBusy || messages.length === 0}
+                    title="Save a shareable report of this meeting and open it. Re-exporting overwrites the previous version and restarts its 90-day retention."
                     className="text-xs font-semibold text-white bg-accent px-4 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {reportBusy ? 'Saving…' : 'Save & Share'}
@@ -1115,11 +1124,12 @@ export function Room() {
                         await refreshRoom();
                       } catch {}
                     }}
+                    title="Make this room active again so people and agents can speak in it. Its original expiry date does not move — reactivating does not extend it."
                     className="text-xs font-semibold text-ink-muted bg-surface border border-border px-4 py-1.5 rounded-lg hover:border-accent/40 hover:text-accent transition"
                   >
                     Reactivate
                   </button>
-                  <button onClick={() => navigate('/')} className="text-xs font-semibold text-ink-faint hover:text-ink-muted">Back to home</button>
+                  <button onClick={() => navigate('/')} title="Return to the room list." className="text-xs font-semibold text-ink-faint hover:text-ink-muted">Back to home</button>
                 </div>
               </div>
             ) : !myCanSpeak ? (
@@ -1192,7 +1202,11 @@ export function Room() {
                           type="button"
                           disabled={modeBusy || muted}
                           onClick={() => { void handleAskAgent(agent); }}
-                          title={muted ? `${agent.name} is muted` : `Ask ${agent.name}`}
+                          title={muted
+                            ? `${agent.name} is muted by the host and cannot speak, so it cannot be asked.`
+                            : replyMode === 'open'
+                              ? `Put "@${agent.name}" in the message box. Nothing is sent until you press Send.`
+                              : `Hand ${agent.name} the next speaking slot in the current turn. Send a message first — there has to be a turn to grant.`}
                           className="shrink-0 min-h-10 rounded-full border border-accent-tint-border bg-accent-tint px-3.5 text-[13px] font-semibold text-accent transition hover:bg-accent-tint-border active:scale-[0.98] disabled:opacity-45 disabled:cursor-not-allowed"
                         >
                           @{agent.name}
@@ -1263,7 +1277,7 @@ export function Room() {
                       <button
                         onClick={() => fileInputRef.current?.click()}
                         disabled={attachBusy || attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE}
-                        title="Attach files"
+                        title="Attach files to this message. Uploads need Cloudflare R2 credentials, which a local install does not set, so this fails with a storage error unless an operator configured them."
                         className="h-10 w-10 sm:h-9 sm:w-auto justify-center rounded-lg bg-surface-softer border border-border sm:px-2 text-xs font-semibold text-ink-muted disabled:opacity-50 flex items-center gap-1.5 active:scale-95 transition"
                       >
                         <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1275,6 +1289,7 @@ export function Room() {
                     <button
                       onClick={send}
                       disabled={sending || attachBusy || (!text.trim() && attachments.length === 0)}
+                      title="Send this message to the room. Everyone in the room sees it, and it becomes part of the transcript that gets exported — keep keys and passwords out of it."
                       className="min-h-[40px] sm:min-h-[36px] min-w-[78px] sm:min-w-[64px] bg-accent text-white px-5 sm:px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5"
                     >
                       <span>{sending ? 'Sending…' : attachBusy ? 'Uploading…' : 'Send'}</span>

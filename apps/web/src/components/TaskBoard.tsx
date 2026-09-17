@@ -109,13 +109,14 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
         </div>
         {error && <div role="alert" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
           <p>{error}</p>
-          <button type="button" onClick={() => void reload()} className="mt-1 min-h-11 font-semibold underline">Retry</button>
+          <button type="button" onClick={() => void reload()} title="Read the task board again. The board is stored with the room, so a failure here is usually a storage hiccup." className="mt-1 min-h-11 font-semibold underline">Retry</button>
         </div>}
         {!ended && (
           <button
             type="button"
             onClick={() => setComposing(v => !v)}
             disabled={busy}
+            title={composing ? 'Close the new-task form without creating anything.' : 'Open the form to add a task. A task needs an owner to do the work and, ideally, a different verifier to sign it off — nobody approves their own delivery.'}
             className={`mt-3 w-full ${CTRL} ${composing
               ? 'border border-border bg-surface-softer text-ink-muted'
               : 'bg-accent text-white shadow-sm hover:opacity-90'}`}
@@ -168,6 +169,7 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
                 <button
                   type="button"
                   onClick={() => setShowClosed(v => !v)}
+                  title="Show or hide tasks that are already done, rejected, or cancelled. Hidden by default to keep the open work visible."
                   className="mt-4 flex w-full items-center justify-between rounded-lg border border-border-faint bg-surface-softer px-3 py-2.5 text-[13px] sm:text-xs font-semibold text-ink-muted transition hover:border-border"
                 >
                   <span>Closed ({closed.length})</span>
@@ -294,6 +296,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                       c => verifyTask(c, code, task.id, { name: me.name, client: 'web' }, 'done', undefined),
                       'Approve failed',
                     )}
+                    title="Sign off on this task as the verifier and close it as done. Recorded in the room with your name."
                     className={`${CTRL} bg-emerald-600 text-white hover:bg-emerald-700`}
                   >
                     Approve
@@ -302,6 +305,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                     type="button"
                     disabled={busy}
                     onClick={() => setPanel('reject')}
+                    title="Send this task back with a reason. It reopens for its owner instead of closing."
                     className={`${CTRL} border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100`}
                   >
                     Reject
@@ -313,6 +317,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                   type="button"
                   disabled={busy}
                   onClick={() => void run(c => updateTask(c, code, task.id, { state: 'todo' }), 'Reopen failed')}
+                  title="Put this closed task back into the to-do state so it can be picked up again."
                   className={`${CTRL} border border-border bg-surface-softer text-ink-muted hover:border-accent/40 hover:text-accent`}
                 >
                   Reopen
@@ -323,6 +328,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                   type="button"
                   disabled={busy}
                   onClick={() => setPanel('block')}
+                  title="Mark this task as blocked and say what is blocking it. The reason shows on the card so the room can unblock it."
                   className={`${CTRL} border border-border bg-surface-softer text-ink-muted hover:border-rose-300 hover:text-rose-600`}
                 >
                   Block
@@ -333,6 +339,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                   type="button"
                   disabled={busy}
                   onClick={() => setPanel('assign')}
+                  title="Change who owns this task and who verifies it. The two cannot be the same participant."
                   className={`${CTRL} border border-border bg-surface-softer text-ink-muted hover:border-accent/40 hover:text-accent`}
                 >
                   Reassign
@@ -342,6 +349,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                 <button
                   type="button"
                   onClick={() => onMention(`@${task.owner} status on ${task.id} (${task.title})?`)}
+                  title={`Put a status question to @${task.owner} in the message box. Nothing is sent until you review it and press Send.`}
                   className={`${CTRL} border border-accent-tint-border bg-accent-tint text-accent hover:bg-accent-tint-border`}
                 >
                   Ask owner
@@ -355,6 +363,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                     c => cancelTask(c, code, task.id, { name: me.name, client: 'web' }, 'Cancelled by host'),
                     'Cancel failed',
                   )}
+                  title="Drop this task as host. It closes as cancelled and stays on the board under Closed for the record."
                   className={`${CTRL} ml-auto text-ink-faint hover:text-rose-600`}
                 >
                   Cancel
@@ -415,6 +424,7 @@ function ReviewEvidence({ task }: { task: Task }) {
           <button
             type="button"
             onClick={() => setOpen(v => !v)}
+            title="Show or hide the evidence the owner submitted — the command output and exit code behind this claim of done."
             className="mt-2 text-[11px] font-semibold text-amber-800 underline underline-offset-2"
           >
             {open ? 'Hide evidence' : `Evidence from ${ev.submittedBy} (exit ${ev.exitCode})`}
@@ -475,11 +485,12 @@ function NotePanel({ id, label, submitLabel, destructive, value, onChange, busy,
           type="button"
           disabled={busy || !value.trim()}
           onClick={onSubmit}
+          title={destructive ? 'Apply this to the task and record your note on it. Needs a reason first.' : 'Save this note to the task. Needs some text first.'}
           className={`${CTRL} flex-1 ${destructive ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-accent text-white hover:opacity-90'}`}
         >
           {submitLabel}
         </button>
-        <button type="button" onClick={onCancel} className={`${CTRL} border border-border bg-white text-ink-muted`}>
+        <button type="button" onClick={onCancel} title="Discard what you typed and leave the task unchanged." className={`${CTRL} border border-border bg-white text-ink-muted`}>
           Cancel
         </button>
       </div>
@@ -522,11 +533,12 @@ function AssignPanel({ agents, task, busy, onCancel, onSubmit }: {
             ...(owner ? { owner, ownerClient: 'cc' as const } : {}),
             ...(verifier ? { verifier, verifierClient: 'cc' as const } : {}),
           })}
+          title="Apply the new owner and verifier. Disabled while they are the same participant, or while nothing has changed."
           className={`${CTRL} flex-1 bg-accent text-white hover:opacity-90`}
         >
           Save roles
         </button>
-        <button type="button" onClick={onCancel} className={`${CTRL} border border-border bg-white text-ink-muted`}>
+        <button type="button" onClick={onCancel} title="Leave the owner and verifier as they are." className={`${CTRL} border border-border bg-white text-ink-muted`}>
           Cancel
         </button>
       </div>
@@ -620,10 +632,12 @@ function NewTaskForm({ agents, busy, onCancel, onSubmit }: {
         </p>
       )}
       <div className="flex gap-2">
-        <button type="submit" disabled={busy || !title.trim() || conflict} className={`${CTRL} flex-1 bg-accent text-white hover:opacity-90`}>
+        <button type="submit" disabled={busy || !title.trim() || conflict}
+          title="Add this task to the room's board. Needs a title, and the owner and verifier must be different — an agent cannot sign off on its own work."
+          className={`${CTRL} flex-1 bg-accent text-white hover:opacity-90`}>
           {busy ? 'Creating' : 'Create task'}
         </button>
-        <button type="button" onClick={onCancel} className={`${CTRL} border border-border bg-white text-ink-muted`}>
+        <button type="button" onClick={onCancel} title="Close this form without creating a task." className={`${CTRL} border border-border bg-white text-ink-muted`}>
           Cancel
         </button>
       </div>
@@ -697,6 +711,7 @@ function DeliverySection({ artifacts, canExport, reportBusy, onExportReport }: {
         type="button"
         onClick={onExportReport}
         disabled={reportBusy || !canExport}
+        title="Save a shareable report of this room — summary, decisions, tasks, and transcript — and open it. Re-exporting overwrites the previous version and restarts its 90-day retention."
         className={`mt-3 w-full ${CTRL} border border-accent-tint-border bg-accent-tint text-accent hover:bg-accent-tint-border`}
       >
         {reportBusy ? 'Saving' : 'Save and share report'}

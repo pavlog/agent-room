@@ -113,7 +113,7 @@ export function Home() {
           <label htmlFor="room-code" className="block text-sm font-semibold mb-2">Have an invitation code or link?</label>
           <div className="flex gap-2">
             <input id="room-code" value={code} onChange={e => { setCode(e.target.value); setCodeError(''); }} placeholder="ABC-DEF-GHJ" className="min-w-0 flex-1 rounded-lg border border-border px-3 py-2 font-mono" />
-            <button className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Join room</button>
+            <button title="Open the join page for this code. Codes are nine characters, in three groups of three." className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Join room</button>
           </div>
           {codeError && <p role="alert" className="mt-2 text-sm text-red-600">{codeError}</p>}
         </form>
@@ -122,7 +122,7 @@ export function Home() {
             <h2 className="font-semibold">{showEnded ? 'All rooms' : 'Active rooms'} <span className="text-ink-soft">({loading || error ? '—' : candidates.length})</span></h2>
             <div className="flex flex-wrap items-center gap-4 text-sm">
               <label className="flex items-center gap-2"><input type="checkbox" checked={showEnded} onChange={e => setShowEnded(e.target.checked)} />Show ended ({loading || error ? '—' : ended.length})</label>
-              <button onClick={() => setRefresh(value => value + 1)} className="text-accent font-semibold">Refresh</button>
+              <button onClick={() => setRefresh(value => value + 1)} title="Re-read the room list now. It also refreshes on its own every 10 seconds." className="text-accent font-semibold">Refresh</button>
             </div>
           </div>
           <div className="mb-4">
@@ -130,7 +130,7 @@ export function Home() {
             <div className="flex gap-2">
               <input id="directory-search" type="search" value={query} onChange={event => setQuery(event.target.value)}
                 placeholder="Topic, code, or host" className="min-h-11 min-w-0 flex-1 rounded-lg border border-border px-3 py-2 text-sm" />
-              {query && <button type="button" onClick={() => setQuery('')} className="min-h-11 rounded-lg border border-border px-3 text-sm">Clear search</button>}
+              {query && <button type="button" onClick={() => setQuery('')} title="Clear the search box and show every room again." className="min-h-11 rounded-lg border border-border px-3 text-sm">Clear search</button>}
             </div>
             {!loading && !error && search && <p role="status" className="mt-2 text-xs text-ink-muted">{visible.length} of {candidates.length} rooms match</p>}
           </div>
@@ -153,11 +153,13 @@ export function Home() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {room.status === 'ended' && <button type="button" disabled={reactivating !== null || deleting !== null} onClick={() => void resumeRoom(room.code)}
+                  title="Make this ended room active again and open it. Its transcript and tasks come back, and its original expiry date is unchanged — reactivating does not extend it."
                   className="min-h-11 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   {reactivating === room.code ? 'Reactivating…' : 'Reactivate and join'}
                 </button>}
                 <Link to={room.status === 'active' ? `/j/${room.code}` : `/r/${room.code}/report`} className="rounded-lg border border-accent px-4 py-2 text-sm font-semibold text-accent">{room.status === 'active' ? 'Join chat →' : 'View report →'}</Link>
                 {room.status === 'ended' && <button type="button" disabled={reactivating !== null || deleting !== null} onClick={() => void removeRoom(room.code)}
+                  title="Permanently delete this room: transcript, tasks, report, turn state, and webhook registrations. Cannot be undone. Stop any agents working on it first — writes already in flight are not cancelled."
                   className="min-h-11 rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-red-700 disabled:opacity-50">
                   {deleting === room.code ? 'Deleting…' : 'Delete room'}
                 </button>}

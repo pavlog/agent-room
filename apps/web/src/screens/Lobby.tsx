@@ -110,16 +110,20 @@ export function Lobby() {
         <div className="text-[9px] uppercase tracking-widest font-semibold text-ink-faint mb-1.5">Meeting code</div>
         <div className="font-mono text-2xl font-bold tracking-[0.06em]">{code}</div>
         <button onClick={() => copyText(code, 'Meeting code copied')}
+          title="Copy just the meeting code. Anyone with the code can join and speak, so share it the way you would a password."
+          aria-label="Copy meeting code"
           className="absolute top-2.5 right-2.5 bg-surface border border-border w-7 h-7 rounded-md text-ink-soft text-xs">⎘</button>
       </div>
 
       <div className="bg-surface-softer border border-dashed border-border rounded-lg p-3 text-[10px] text-ink-soft leading-relaxed mb-4 relative whitespace-pre-line">
         <button onClick={() => copyText(inviteText, 'Invite copied')}
+          title="Copy the whole invitation message, ready to paste into a chat or email."
           className="absolute top-2 right-2 bg-surface border border-border px-2 py-0.5 rounded text-[9px] font-semibold text-ink-muted">⎘ Copy</button>
         {inviteText}
       </div>
 
       <button onClick={() => copyText(joinUrl, 'Link copied')}
+        title="Copy the join link for this room. It only works on this computer — a localhost address is not reachable from anywhere else."
         className="w-full mb-4 bg-accent-tint text-accent border border-accent/20 py-2 rounded-lg text-xs font-semibold">
         Copy invite link
       </button>
@@ -160,8 +164,8 @@ export function Lobby() {
       </div>
 
       <div className="flex gap-2">
-        <button onClick={() => navigate('/')} className="flex-1 bg-surface border border-border py-2.5 rounded-lg text-sm font-semibold text-ink-muted">Invite later</button>
-        <button onClick={() => navigate(`/r/${code}`)} className="flex-1 bg-accent text-white py-2.5 rounded-lg text-sm font-semibold">Enter room →</button>
+        <button onClick={() => navigate('/')} title="Go back to the room list. The room stays active and you can enter it later from there." className="flex-1 bg-surface border border-border py-2.5 rounded-lg text-sm font-semibold text-ink-muted">Invite later</button>
+        <button onClick={() => navigate(`/r/${code}`)} title="Open the room and start the conversation. You can still copy the invite from inside." className="flex-1 bg-accent text-white py-2.5 rounded-lg text-sm font-semibold">Enter room →</button>
       </div>
       </div>
     </>

@@ -54,6 +54,7 @@ export function RoomSwitcher({ currentCode, beforeNavigate }: { currentCode: str
   return (
     <div>
       <button ref={trigger} type="button" onClick={() => open ? close() : setOpen(true)}
+        title="List the active rooms on this server and switch to one. Leaving this room does not end it; you can rejoin from the same link."
         aria-expanded={open} aria-controls="room-switcher" aria-haspopup="dialog"
         className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold text-ink">Rooms</button>
         <dialog ref={dialog} id="room-switcher" aria-label="Switch room"
@@ -65,7 +66,7 @@ export function RoomSwitcher({ currentCode, beforeNavigate }: { currentCode: str
           className="m-auto max-h-[85dvh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-xl border border-border bg-surface p-4 text-ink shadow-xl backdrop:bg-black/30">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-semibold">Switch room</h2>
-            <button type="button" onClick={close} className="min-h-11 px-3 text-sm">Close</button>
+            <button type="button" onClick={close} title="Close this list and stay in the current room." className="min-h-11 px-3 text-sm">Close</button>
           </div>
           <label htmlFor="room-search" className="block text-sm text-ink-muted">Search active rooms</label>
           <input ref={search} id="room-search" value={query} onChange={event => setQuery(event.target.value)} className="mt-2 w-full rounded-lg border border-border bg-surface p-3 text-ink" />

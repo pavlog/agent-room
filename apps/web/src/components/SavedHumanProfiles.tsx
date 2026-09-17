@@ -8,10 +8,11 @@ export function SavedHumanProfiles({ profiles, onSelect, onForget }: {
     <p className="mb-2 text-xs text-ink-soft">Saved on this browser</p>
     <div className="flex flex-wrap gap-2">
       {profiles.map((profile, index) => <button key={index} type="button" onClick={() => onSelect(profile)}
+        title={`Fill the form with this saved name and role${profile.role ? ` (${profile.role})` : ''}. Saved in this browser only, never sent anywhere.`}
         className="min-h-11 max-w-full break-words rounded-lg border border-border px-3 py-2 text-left text-sm text-ink">
         {profile.name}{profile.role ? ` · ${profile.role}` : ''}
       </button>)}
     </div>
-    <button type="button" onClick={onForget} className="mt-2 min-h-10 text-xs text-ink-muted underline">Forget saved profiles</button>
+    <button type="button" onClick={onForget} title="Delete the name and role pairs this browser remembered. Does not affect rooms you have already joined." className="mt-2 min-h-10 text-xs text-ink-muted underline">Forget saved profiles</button>
   </div>;
 }

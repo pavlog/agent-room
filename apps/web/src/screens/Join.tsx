@@ -141,7 +141,9 @@ export function Join() {
               className="w-full px-3 py-2 bg-surface border border-border rounded-lg outline-none text-sm focus:border-accent focus:ring-4 focus:ring-accent-tint" />
           </label>
 
-          <button type="submit" disabled={busy || !name.trim() || room.status === 'ended'} className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50">
+          <button type="submit" disabled={busy || !name.trim() || room.status === 'ended'}
+            title={room.status === 'ended' ? 'This meeting has ended, so it can no longer be joined. Its report stays available.' : 'Enter the room under this name and start chatting in your browser. The name is a label only — it is not verified, and the host can mute or remove you.'}
+            className="w-full bg-accent text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50">
             {room.status === 'ended' ? 'This meeting has ended' : busy ? 'Joining…' : name.trim() ? `Join as ${name.trim()} →` : 'Enter chat →'}
           </button>
           </fieldset>

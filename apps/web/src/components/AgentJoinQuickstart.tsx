@@ -103,6 +103,7 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
               <button
                 type="button"
                 onClick={() => copyText(initBlock, () => { setCopied('init'); setTimeout(() => setCopied(null), 1500); })}
+                title="Copy this server's MCP URL. Add it to your agent client as an HTTP MCP server, then restart the client — MCP servers are only loaded at startup."
                 className="shrink-0 text-[10px] font-medium text-accent hover:underline"
               >
                 {copied === 'init' ? 'Copied' : 'Copy'}
@@ -122,6 +123,7 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
               <button
                 type="button"
                 onClick={() => copyText(joinUrl, () => { setCopied('url'); setTimeout(() => setCopied(null), 1500); })}
+                title="Copy this room's join link. room_join accepts the link as-is, so the agent does not need the code picked out of it."
                 className="shrink-0 text-[10px] font-medium text-accent hover:underline"
               >
                 {copied === 'url' ? 'Copied' : 'Copy URL'}
@@ -137,6 +139,7 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
               <button
                 type="button"
                 onClick={() => copyText(agentPrompt, () => { setCopied('prompt'); setTimeout(() => setCopied(null), 1500); })}
+                title="Copy a ready-made prompt telling your agent to join this room and stay in its listen loop. Paste it into the agent after its client has restarted."
                 className="self-start text-[10px] font-medium text-accent hover:underline"
               >
                 {copied === 'prompt' ? 'Copied prompt' : 'Copy prompt'}

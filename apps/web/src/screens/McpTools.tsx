@@ -86,6 +86,7 @@ function CopyBlock({ children, dark = false }: { children: string; dark?: boolea
           setTimeout(() => setCopied(false), 1500);
         }}
         className="absolute right-2 top-2 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/80 opacity-80 transition hover:bg-white/20 group-hover:opacity-100"
+        title="Copy this snippet to the clipboard."
         aria-label="Copy snippet"
       >
         {copied ? 'Copied' : 'Copy'}

@@ -52,7 +52,7 @@ export function Report() {
     <h1 className="text-2xl font-bold">Could not load report</h1>
     <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>
     <div className="mt-5 flex flex-wrap gap-4">
-      <button type="button" onClick={() => setRetry(value => value + 1)} className="min-h-11 rounded-lg bg-accent px-4 font-semibold text-white">Retry loading</button>
+      <button type="button" onClick={() => setRetry(value => value + 1)} title="Try fetching this report again. Usually a storage hiccup rather than a missing report." className="min-h-11 rounded-lg bg-accent px-4 font-semibold text-white">Retry loading</button>
       <Link to="/" className="inline-flex min-h-11 items-center text-accent">All rooms</Link>
     </div>
   </div>;
@@ -92,12 +92,14 @@ export function Report() {
             <button
               onClick={refreshReport}
               disabled={refreshing}
+              title="Rebuild this report from the room's current transcript and tasks. Overwrites the saved version and resets its 90-day retention from now."
               className="rounded-lg bg-white text-slate-950 px-4 py-2 text-xs font-semibold disabled:opacity-60"
             >
               {refreshing ? 'Refreshing…' : 'Refresh from latest'}
             </button>
             <button
               onClick={() => downloadMarkdown(report, artifacts)}
+              title="Save this report to your computer as a Markdown file. Keep a copy if you need it beyond the 90-day retention."
               className="rounded-lg border border-white/25 bg-white/5 px-4 py-2 text-xs font-semibold text-white hover:bg-white/10"
             >
               Download Markdown

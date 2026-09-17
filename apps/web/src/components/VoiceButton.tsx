@@ -108,7 +108,9 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
         disabled={disabled}
         onClick={listening ? stop : start}
         aria-label={listening ? 'Stop voice input' : 'Start voice input'}
-        title={listening ? 'Stop voice input' : 'Start voice input'}
+        title={listening
+          ? 'Stop listening. What was recognised so far stays in the message box.'
+          : 'Dictate with your browser\'s speech recognition. The words are added to the message box for you to review — nothing is sent automatically.'}
         className={`leading-none w-10 h-10 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg transition ${
           listening
             ? 'bg-red-100 text-red-600 animate-pulse'

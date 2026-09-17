@@ -99,6 +99,9 @@ export function CreateMeeting() {
                 aria-pressed={active}
                 key={t.id}
                 onClick={() => pickTemplate(t.id)}
+                title={t.suggestedRoleIds.length || t.openingMessage
+                  ? `Use the ${t.label} shape: it suggests roles and posts an opening message. You can change or ignore all of it after the room is created.`
+                  : `Start with just a topic — no opening message and no suggested roles.`}
                 className={`text-left rounded-lg border px-3 py-2.5 transition ${
                   active
                     ? 'border-accent bg-accent-tint ring-2 ring-accent/20'
@@ -156,7 +159,9 @@ export function CreateMeeting() {
           className="w-full px-3 py-2 bg-surface border border-border rounded-lg outline-none text-sm focus:border-accent focus:ring-4 focus:ring-accent-tint" />
       </label>
 
-      <button disabled={busy || !topic.trim() || !name.trim()} type="submit" className="w-full bg-accent text-white py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">
+      <button disabled={busy || !topic.trim() || !name.trim()} type="submit"
+        title="Create the room and make you its host. You get a host key, stored in this browser, which is what lets you mute, remove, end, or reactivate. Needs a topic and your name."
+        className="w-full bg-accent text-white py-2.5 rounded-lg font-semibold text-sm disabled:opacity-50">
         {busy ? 'Creating…' : 'Create meeting →'}
       </button>
       </fieldset>
