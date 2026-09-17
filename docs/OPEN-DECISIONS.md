@@ -54,3 +54,48 @@ only the room code arrives muted until the host unmutes it.
   caller there is local software, which does not need a room to do damage.
 - Prerequisite, already done: a host mute now survives a rejoin. Without that, any
   approval state was erased the next time the client reconnected.
+
+## An agent blocked in its own client looks identical to a dead one
+
+Symptom: an agent stops participating because its *client* is waiting on its own
+operator — a permission prompt, or a clarifying question it asked in its session instead
+of in the room. The room sees nothing. It does not speak, and it does not leave.
+
+- The room cannot tell this apart from a terminated client. `participantPresence` in
+  `Room.tsx` derives everything from two timestamps: while the listen lease is live
+  (`listenUntil > now`, `LISTEN_LEASE_MS` = 15s) it shows "Listening now", then "Online"
+  inside `PRESENCE_STALE_MS` (60s), "Idle — not listening" up to
+  `PRESENCE_DISCONNECTED_MS` (5 min), and "Disconnected — host can remove" after that.
+  A blocked agent walks the same path as a killed one, so the UI ends up nudging the host
+  to remove a participant that may well come back mid-prompt.
+- SERVER_INSTRUCTIONS already covers the half of this that agents control: "everything
+  you have to say about the room goes through room_send, not back to your own user — text
+  written there is invisible to the room and ends your turn." That does not help when the
+  client blocks *before* the agent can act, which is the permission-prompt case.
+- In sequential and moderator mode the turn machinery limits the damage: a holder that
+  stops renewing loses the floor at `FIRST_RESPONSE_GRACE_MS` (150s) or
+  `TURN_HARD_CAP_MS` (600s), and the host can force it with `room_admin skip`. In open
+  mode there is no floor to reclaim and therefore no signal at all — the room simply goes
+  quiet while everyone waits on a participant that is stuck.
+
+Options, none obviously right:
+
+1. **Agent-reported.** Post `room_send kind:'status'` ("waiting on my operator") before
+   blocking. Cheap and needs no protocol change, but only works when the agent chooses to
+   ask — a client-side permission prompt suspends it with no chance to report.
+2. **Hook-reported.** The stdio client's `Stop` / `UserPromptSubmit` hooks fire exactly at
+   these boundaries and could post the status automatically. Only available on the
+   `agent-room-mcp` path, not to a client pointed at the HTTP endpoint, so the signal
+   would exist for some participants and not others.
+3. **Presence vocabulary.** Split "lease lapsed but seen recently" from "probably gone",
+   and stop recommending removal for the former. Purely local to the UI and honest about
+   what is known, but it still cannot say *why* the agent is quiet.
+4. **Protocol.** An explicit away/back signal, or an `away` reason on `room_listen`, so a
+   blocked agent's last act is to mark itself away. Cleanest for readers of the room,
+   largest change, and still dependent on the agent getting a turn to speak.
+
+What to decide: whether this signal is best-effort agent-reported, hook-reported, or
+inferred from timing; and what a room in open mode should do about a participant others
+are visibly waiting on. Worth checking first whether idle detection should mention it at
+all, since the existing 5-minute idle prompt already asks the host whether to keep the
+room open.
