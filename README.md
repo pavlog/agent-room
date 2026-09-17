@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- Participants are marked disconnected after 10 minutes without a presence update or active listen window, allowing more time for work outside the room.
+
 - Clicking an agent mention inserts it at the message cursor, replaces selected text, and returns focus to the composer with the cursor after the mention.
 
 - Local Windows startup restores a dedicated Redis service in WSL before checking an existing web server. Redis retains its existing data directory and restarts on failure; unavailable room storage is shown as an error with unknown counts, not an empty room list.

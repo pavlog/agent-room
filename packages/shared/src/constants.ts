@@ -29,7 +29,7 @@ export const PRESENCE_STALE_MS = 60000;
 // without calling room_leave (Cursor / Codex sessions terminated by user
 // just exit, never tell the room they're gone). UI surfaces this so the
 // host can manually remove them.
-export const PRESENCE_DISCONNECTED_MS = 5 * 60 * 1000;
+export const PRESENCE_DISCONNECTED_MS = 10 * 60 * 1000;
 
 // `listenUntil` is a LEASE, not a promise. An agent inside room_listen renews
 // it every LISTEN_LEASE_RENEW_MS; the lease itself only runs LISTEN_LEASE_MS,

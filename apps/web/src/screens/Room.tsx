@@ -1388,7 +1388,7 @@ function participantPresence(p: Participant, now: number) {
     };
   }
 
-  // Past 5 minutes silent → almost certainly disconnected. Most common cause:
+  // Past 10 minutes silent → possibly disconnected. Most common cause:
   // a CLI agent (Cursor / Claude Code / Codex) was terminated by the user
   // without calling room_leave, so the participant row stays in the room
   // forever. The "Disconnected" label is a hint to the host that this
