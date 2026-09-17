@@ -486,7 +486,7 @@ export function Room() {
   async function handleAskAgent(p: Participant) {
     if (!canConfigureReplyMode || p.client !== 'cc') return;
     if (replyMode === 'open') {
-      appendText(`@${p.name} `);
+      insertMention(`@${p.name} `);
       return;
     }
     if (!turnState) {
@@ -620,6 +620,22 @@ export function Room() {
       setAttachBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  }
+
+  function insertMention(value: string) {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? text.length;
+    const end = textarea?.selectionEnd ?? start;
+    const prefix = text.slice(0, start);
+    const separator = prefix && !/\s$/.test(prefix) ? ' ' : '';
+    const inserted = separator + value;
+    setText(prefix + inserted + text.slice(end));
+    requestAnimationFrame(() => {
+      if (!textarea?.isConnected) return;
+      textarea.focus();
+      textarea.setSelectionRange(start + inserted.length, start + inserted.length);
+      autoGrow(textarea);
+    });
   }
 
   function appendText(value: string) {
