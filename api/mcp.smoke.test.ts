@@ -19,6 +19,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const REDIS_BASE = 'https://smoke.upstash.invalid';
+// Pin the webhook policy: this file asserts the hosted `public` rule, and a
+// shell that happens to export AGENT_ROOM_WEBHOOKS would otherwise change it.
+process.env.AGENT_ROOM_WEBHOOKS = 'public';
 process.env.UPSTASH_REDIS_REST_URL = REDIS_BASE;
 process.env.UPSTASH_REDIS_REST_TOKEN = 'smoke-token';
 

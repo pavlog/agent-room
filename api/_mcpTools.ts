@@ -55,6 +55,7 @@ import {
   weakLoopListenHint,
   type HttpHarness,
 } from './_mcpHarness.js';
+import { webhookMode } from './_webhookDispatch.js';
 
 export type McpProfile = 'core' | 'full';
 
@@ -779,7 +780,26 @@ const FULL_TOOLS: ToolDef[] = [
  * unchanged.
  */
 export function listTools(profile: McpProfile, harness?: HttpHarness): ToolDef[] {
-  const tools = profile === 'full' ? [...CORE_TOOLS, ...FULL_TOOLS] : CORE_TOOLS;
+  let tools = profile === 'full' ? [...CORE_TOOLS, ...FULL_TOOLS] : CORE_TOOLS;
+  // Webhook policy is a deployment setting, so the surface has to reflect it:
+  // an agent that cannot register one should not spend context reading how.
+  // Unlisting is also what enforces it, including for the hidden
+  // `room_webhook_register` aliases — callTool resolves an alias to its real
+  // name and then refuses anything absent from this list. Note `off` therefore
+  // takes list/unregister with it; dispatch is short-circuited in that mode, so
+  // records left by an earlier setting are inert rather than pending.
+  const hooks = webhookMode();
+  if (hooks === 'off') {
+    tools = tools.filter(t => t.name !== 'room_webhook');
+  } else if (hooks === 'loopback') {
+    tools = tools.map(t => t.name !== 'room_webhook' ? t : {
+      ...t,
+      description: t.description.replace(
+        'via public HTTPS POST',
+        'via POST to this machine or a private address (this server refuses public URLs)',
+      ),
+    });
+  }
   if (!isWeakLoop(harness)) return tools;
   const cap = harness!.maxListenMs!;
   return tools.map((t) => {
@@ -1372,6 +1392,16 @@ async function dispatch(
     case 'room_webhook': {
       switch (a.action) {
         case 'register': {
+          // Backstop. callTool already refuses an unlisted tool, so in `off`
+          // mode this is unreachable today — it exists so the policy still
+          // holds if the surface and the check ever drift apart.
+          if (webhookMode() === 'off') {
+            return ok({
+              registered: false,
+              error: 'webhooks_disabled',
+              hint: 'This server does not deliver webhooks (AGENT_ROOM_WEBHOOKS=off). Keep looping room_listen instead.',
+            });
+          }
           const err = requireFields(a, ['name', 'url']);
           if (err) return ok({ error: 'bad_request', hint: err });
           const body = await client.post<{ webhook: { id: string; url: string } }>({

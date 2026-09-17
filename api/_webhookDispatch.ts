@@ -34,6 +34,46 @@ const BLOCKED_HOSTNAMES = new Set([
   '169.254.169.254',
 ]);
 
+// Never a legitimate webhook target, in any mode. Unlike `localhost` — which a
+// local-only install has every reason to post to — these are the SSRF prize,
+// and nothing a user runs sits on them.
+const METADATA_HOSTNAMES = new Set(['metadata.google.internal', '169.254.169.254']);
+
+export type WebhookMode = 'public' | 'loopback' | 'off';
+
+/**
+ * Which webhook targets this deployment accepts.
+ *
+ *   public   (default, hosted) — public https only, the original rule
+ *   loopback (local installs)  — this machine or a private address only, so
+ *                                room content cannot leave the host
+ *   off                        — no webhooks at all
+ *
+ * Unset means `public`, so a deployment that never heard of this variable
+ * behaves exactly as before. An unrecognized value means `off`: a typo in the
+ * setting that governs egress must not be the thing that widens it.
+ */
+export function webhookMode(): WebhookMode {
+  const raw = (process.env.AGENT_ROOM_WEBHOOKS ?? '').trim().toLowerCase();
+  if (!raw) return 'public';
+  if (raw === 'public' || raw === 'loopback' || raw === 'off') return raw;
+  console.warn(`[webhooks] unrecognized AGENT_ROOM_WEBHOOKS=${raw}; refusing all webhooks`);
+  return 'off';
+}
+
+function isLinkLocalLiteral(hostname: string): boolean {
+  const bare = hostname.replace(/^\[|\]$/g, '');
+  if (/^fe[89ab][0-9a-f]:/i.test(bare)) return true;
+  const m = bare.match(/^(\d{1,3})\.(\d{1,3})\./);
+  return !!m && Number(m[1]) === 169 && Number(m[2]) === 254;
+}
+
+/** Loopback or RFC1918, excluding link-local — the `loopback` mode allowance. */
+function isLocalTarget(hostname: string): boolean {
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname.endsWith('.local')) return true;
+  return isPrivateIpLiteral(hostname) && !isLinkLocalLiteral(hostname);
+}
+
 function isPrivateIpLiteral(hostname: string): boolean {
   // IPv6 literal (URL hostnames keep brackets off after parsing)
   const bare = hostname.replace(/^\[|\]$/g, '');
@@ -49,18 +89,49 @@ function isPrivateIpLiteral(hostname: string): boolean {
   return false;
 }
 
-export function validateWebhookUrl(raw: string): { ok: true; url: URL } | { ok: false; reason: string } {
+export function validateWebhookUrl(
+  raw: string,
+  mode: WebhookMode = webhookMode(),
+): { ok: true; url: URL } | { ok: false; reason: string } {
+  if (mode === 'off') {
+    return { ok: false, reason: 'This server does not deliver webhooks (AGENT_ROOM_WEBHOOKS=off).' };
+  }
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     return { ok: false, reason: 'Not a valid absolute URL.' };
   }
+  const host = url.hostname.toLowerCase();
+  // Applies to every mode, including `public` with ALLOW_HTTP set, which used
+  // to let through link-local addresses other than the one metadata IP.
+  if (METADATA_HOSTNAMES.has(host) || isLinkLocalLiteral(host)) {
+    return { ok: false, reason: 'Webhook URLs must not point at a link-local or metadata address.' };
+  }
+
+  if (mode === 'loopback') {
+    // A local-only install may wake a receiver on this machine but must not
+    // post room content off it. http is allowed because a loopback receiver
+    // has no reason to carry a certificate.
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+      return { ok: false, reason: 'Webhook URLs must be http or https.' };
+    }
+    if (!isLocalTarget(host)) {
+      return {
+        ok: false,
+        reason: 'This server only accepts webhooks pointing at this machine or a private address (AGENT_ROOM_WEBHOOKS=loopback).',
+      };
+    }
+    if (url.username || url.password) {
+      return { ok: false, reason: 'Webhook URLs must not embed credentials.' };
+    }
+    return { ok: true, url };
+  }
+
   const allowHttp = process.env.AGENT_ROOM_WEBHOOK_ALLOW_HTTP === '1';
   if (url.protocol !== 'https:' && !(allowHttp && url.protocol === 'http:')) {
     return { ok: false, reason: 'Webhook URLs must be https.' };
   }
-  const host = url.hostname.toLowerCase();
   if (
     BLOCKED_HOSTNAMES.has(host) ||
     host.endsWith('.localhost') ||
@@ -128,6 +199,7 @@ export async function dispatchRoomWebhooks(
   message: Message,
   cursor: number | null,
 ): Promise<void> {
+  if (webhookMode() === 'off') return;
   let hooks: RoomWebhook[];
   try {
     hooks = await listRoomWebhooks(client, room.code);

@@ -184,13 +184,10 @@ port 5173 inbound and Redis on 6389 — and a full pass over the web UI issues n
 to any host other than `localhost`/`127.0.0.1`. Three paths can still leave the machine,
 none of them on by default:
 
-- **Resident webhooks.** `room_webhook` is exposed by the local MCP server, and
-  `dispatchRoomWebhooks` fires on message append. `validateWebhookUrl` deliberately
-  *requires* a public `https` host and rejects loopback and private ranges, so a
-  registered webhook posts room content off the machine by design. Anyone holding a room
-  code can register one. Nothing is registered unless you or an agent does it.
-  `AGENT_ROOM_WEBHOOK_ALLOW_HTTP=1` relaxes the rule to allow `http` and private hosts,
-  which is what a webhook receiver on this machine would need.
+- **Resident webhooks.** `room_webhook` is exposed by the local MCP server and
+  `dispatchRoomWebhooks` fires on message append, so a registered webhook is the one
+  path that posts room content somewhere else. `AGENT_ROOM_WEBHOOKS` decides where
+  "somewhere else" may be, and `setup:local` writes `loopback` (see below).
 - **Attachment uploads.** `/api/upload` and `/api/delete-room-blobs` talk to Cloudflare
   R2. Unconfigured here: with the `R2_*` variables unset both return 503 and no request
   is made.
@@ -216,3 +213,44 @@ CC-BY-4.0 (`caniuse-lite`), and 0BSD. The MPL-2.0 packages are `edge-runtime` an
 `@edge-runtime/*` modules, reached only through the `@vercel/node` devDependency
 (`npm ls edge-runtime --omit=dev` is empty), so they are build-time only and are not
 distributed with the app.
+
+## Webhook targets
+
+`AGENT_ROOM_WEBHOOKS` in `.env.local` controls which webhook targets this server
+accepts. `setup:local` writes `loopback`.
+
+| Value | Accepts | For |
+|---|---|---|
+| `loopback` | this machine or a private address, `http` or `https` | local installs — a receiver here still works, room content cannot leave the host |
+| `public` | public `https` only — the original rule | a real deployment |
+| `off` | nothing | when webhooks should not exist at all |
+
+Unset means `public`, so a deployment that never heard of the variable behaves exactly
+as before. An unrecognized value means `off` and logs a warning: a typo in the setting
+that governs egress must not be the thing that widens it.
+
+Metadata and link-local addresses (`169.254.0.0/16`, `fe80::/10`,
+`metadata.google.internal`) are refused in **every** mode, `loopback` included. They are
+the classic SSRF target and nothing a user runs sits on them. This is slightly stricter
+than before for deployments that set `AGENT_ROOM_WEBHOOK_ALLOW_HTTP=1`, which previously
+allowed link-local addresses other than the one metadata IP.
+
+The rule is enforced at four points, because registration is not the only way a delivery
+can happen:
+
+1. `listTools` drops `room_webhook` under `off`, so an agent does not spend context
+   reading about a tool it cannot use. This is also what blocks the hidden
+   `room_webhook_register` aliases — `callTool` resolves an alias to its real name and
+   then refuses anything absent from the list. `off` therefore removes `list` and
+   `unregister` too; dispatch is short-circuited in that mode, so any record left by an
+   earlier setting is inert rather than pending.
+2. The `register` handler re-checks the mode as a backstop, in case the surface and the
+   policy ever drift apart.
+3. `validateWebhookUrl` is the seam every caller passes through, and it is where the
+   mode is actually applied.
+4. `deliverOne` re-validates each URL at delivery, so a hook registered under a wider
+   policy stops firing the moment the policy narrows. Those deliveries count as
+   failures, so such a hook is dropped after `MAX_CONSECUTIVE_FAILURES` messages.
+
+`api/webhookMode.test.ts` covers the modes, the always-blocked addresses, the alias path,
+and the tool-surface changes.
