@@ -6,6 +6,8 @@ Local setup for https://github.com/pavlog/agent-room. Run the commands from your
 - MCP endpoint: http://localhost:5173/mcp
 - Health check: http://localhost:5173/health
 
+The instructions below cover Windows. For macOS, see [macOS installation](#macos-installation).
+
 ## First installation
 
 To delete a room, end it first, enable **Show ended**, and select **Delete room**. Confirming permanently removes its Redis room data, transcript, tasks, report, turn state, and webhook registrations. External attachment files and browser-local copies remain. Stop agents working on that room before deletion; already in-flight client writes are not cancelled by this action.
@@ -48,6 +50,47 @@ Settings are in the ignored `.env.local` and `apps/web/.env.local` files. Logs a
 Optional attachment uploads require Cloudflare R2 credentials and are not configured. Core rooms and text messaging work with local Redis. Normal application room expiration still applies despite disk persistence.
 
 This setup shares a Redis credential with the browser and is intended for a trusted local machine. Keep the loopback binding; public hosting requires a separate authentication and authorization design. Never commit environment files, logs, or room data.
+
+## macOS installation
+
+Homebrew provides both prerequisites; no WSL, Docker, or PowerShell is involved:
+
+```sh
+brew install node redis
+npm run setup:local
+npm ci
+npm run build:ordered
+./start-local-macos.sh
+```
+
+`start-local-macos.sh` is the macOS counterpart of `start.bat`. It starts a dedicated
+`redis-server` on port 6389 bound to `127.0.0.1`, with append-only persistence in
+`~/.local/share/agent-room`, then starts the web/MCP server on port 5173 and waits for
+`/health`. It adopts an existing Redis on 6389 only when that instance uses this data
+directory, and it refuses an occupied port 5173 unless the listener is the launch this
+checkout recorded in `.local/server-process.json`. Server output goes to `.local/server.log`
+and Redis output to `~/.local/share/agent-room/redis.log`.
+
+`stop-local-macos.sh` stops the web server, leaving Redis and its data running. Pass `--redis` to
+also shut down the managed Redis; it refuses to stop an instance using a different data
+directory. Neither script installs a login item, so start the server again after a reboot.
+
+Both launchers share the identity checks in `scripts/local-process-macos.sh`, the counterpart of
+`local-process.ps1`. A launch records the pid, the absolute script path, and the process
+start time; a stop signals nothing unless all three still match a live `node` process running
+this checkout's server. A legacy pid-only file, a malformed record, another checkout's path,
+or a recycled pid with a newer start time all fail closed — as on Windows, identify such a
+process yourself before stopping it. A record written by an earlier revision of these scripts
+is in the old format and will be refused; stop that server by hand once, then relaunch.
+
+Run `./scripts/local-process-macos.test.sh` to exercise those checks with synthetic records. It
+starts and stops only a temporary idle Node process inside a temp fixture, and never launches
+the application, binds a port, or connects to Redis.
+
+`npm ci` under npm 11 reports skipped install scripts for `esbuild` and `@clerk/shared`.
+The builds and the local server work without approving them: esbuild resolves its binary
+from `@esbuild/darwin-arm64`, and Clerk is a hosted-deployment dependency that the local
+web build never imports.
 
 ## Serving origin
 
