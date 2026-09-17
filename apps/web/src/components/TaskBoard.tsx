@@ -424,10 +424,10 @@ function ReviewEvidence({ task }: { task: Task }) {
           <button
             type="button"
             onClick={() => setOpen(v => !v)}
-            title="Show or hide the evidence the owner submitted — the command output and exit code behind this claim of done."
+            title="Show or hide the submitted evidence and command output. A successful command does not mean the task has passed review."
             className="mt-2 text-[11px] font-semibold text-amber-800 underline underline-offset-2"
           >
-            {open ? 'Hide evidence' : `Evidence from ${ev.submittedBy} (exit ${ev.exitCode})`}
+            {open ? 'Hide evidence' : `Evidence from ${ev.submittedBy} (${ev.exitCode === 0 ? 'Command completed successfully' : `Command failed: code ${ev.exitCode}`})`}
           </button>
           {open && (
             <div className="mt-2 space-y-2">
