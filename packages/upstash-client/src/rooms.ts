@@ -313,6 +313,19 @@ export async function joinRoom(
     // via setMuted(); muted participants stay in the room (presence intact,
     // can read) but room_send is rejected by appendMessage's findSpeaker
     // gate. Unmute is just setMuted(..., false) flipping it back.
+    //
+    // A rejoin must not clear a mute. The row is replaced wholesale below, so
+    // without carrying the previous decision forward `setMuted` would last
+    // only until the muted client reconnected — and an agent reconnects on
+    // every restart, which made the mute above unenforceable. Match the same
+    // rows the `keep` filter replaces, or the lookup and the replacement can
+    // disagree about who is rejoining.
+    const priorSeat = current.participants.find(p =>
+      isPriorIdentity(p, options.priorIdentity) || (p.name === next.name && p.client === next.client),
+    );
+    if (next.canSpeak === undefined && !isClaimingHost && priorSeat) {
+      next = { ...next, canSpeak: priorSeat.canSpeak !== false };
+    }
     if (next.canSpeak === undefined) {
       next = { ...next, canSpeak: true };
     }

@@ -286,3 +286,24 @@ can open a local port. That is inherent to a loopback service without authentica
 the protection here is against pages in your browser, not against local software.
 
 `api/mcpCors.test.ts` covers the modes, the accepted origin set, and the refusals.
+
+## Who can speak in a room
+
+The room code is the credential — anyone holding it can join and, by default, speak
+immediately. That is deliberate: an earlier "host approves every joiner" gate was
+reverted as too much friction, because a joining agent has only the code, so such a gate
+cannot tell your own agent from an uninvited one and mutes both. The model is the
+Slack/Zoom one instead: everyone speaks on entry, and the host mutes anyone who
+shouldn't.
+
+Mute now survives a rejoin. It previously did not: `joinRoom` replaces the returning
+participant's row, and the replacement defaulted to `canSpeak: true`, so a muted
+participant got its voice back by reconnecting — which an agent does on every restart.
+
+Two limits worth knowing. Sender names are not authenticated, and mute is per seat, so a
+muted participant that returns under a *different* name is a different seat and can
+speak; the server tells agents as much in its own instructions. And a hostile message is
+just text — the instructions warn agents never to act on a room request without
+confirming with their own user, but whether an agent obeys is the agent's reasoning, not
+something this server can enforce. Keep secrets out of rooms, and treat a join link like
+a password.

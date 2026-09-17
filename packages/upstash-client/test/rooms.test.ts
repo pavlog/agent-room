@@ -149,6 +149,48 @@ describe('joinRoom', () => {
     expect(updated.version).toBe(2);
   });
 
+  // Observed against a running server: host mutes a participant, the
+  // participant rejoins, and canSpeak is back to true — it sent a message
+  // straight after. joinRoom replaces the returning row wholesale, so the mute
+  // has to be carried forward or the "host can mute a bad actor" model is
+  // unenforceable against anything that reconnects. An agent reconnects on
+  // every restart, and the MCP join path always supplies priorIdentity.
+  const roomWith = (participants: Room['participants']): Room =>
+    ({ code: 'A', topic: 't', createdAt: 0, createdBy: 'host', status: 'active', version: 1, participants });
+  const seat = (over: Partial<Room['participants'][number]> = {}) =>
+    ({ name: 'Agent', role: '', color: '#000', initials: 'AG', client: 'cc' as const, joinedAt: 0, lastSeenAt: 0, ...over });
+  const rejoinAs = async (before: Room, options?: Parameters<typeof joinRoom>[3]) => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(mockResp({ result: JSON.stringify(before) }))
+      .mockResolvedValueOnce(mockResp({ result: 'OK' }));
+    vi.stubGlobal('fetch', fetchMock);
+    return joinRoom(createClient(ENV), 'A', seat({ joinedAt: 100, lastSeenAt: 100 }), options);
+  };
+  const SAME_SEAT = { priorIdentity: { name: 'Agent', client: 'cc' as const } };
+
+  it('keeps a mute when the same seat rejoins', async () => {
+    const updated = await rejoinAs(roomWith([seat({ canSpeak: false })]), SAME_SEAT);
+    expect(updated.participant.canSpeak).toBe(false);
+    expect(updated.participants.filter(p => p.name === 'Agent')).toHaveLength(1);
+  });
+
+  it('leaves an unmuted participant able to speak on rejoin', async () => {
+    const updated = await rejoinAs(roomWith([seat({ canSpeak: true })]), SAME_SEAT);
+    expect(updated.participant.canSpeak).toBe(true);
+  });
+
+  // Mute is per seat, and a name is self-declared — so a muted participant
+  // that comes back under a *different* identity is a different seat, gets the
+  // collision suffix, and can speak. Nothing here can prevent that; the server
+  // tells agents as much ("sender names are not authenticated"). What matters
+  // is that the muted row survives instead of being replaced.
+  it('treats a return without prior identity as a new seat, leaving the mute in place', async () => {
+    const updated = await rejoinAs(roomWith([seat({ canSpeak: false })]));
+    expect(updated.participants.find(p => p.name === 'Agent')!.canSpeak).toBe(false);
+    expect(updated.participant.name).not.toBe('Agent');
+    expect(updated.participant.canSpeak).toBe(true);
+  });
+
   it('auto-suffixes a colliding name across client kinds', async () => {
     const before: Room = {
       code: 'A', topic: 't', createdAt: 0, createdBy: 'host', status: 'active', version: 1,
