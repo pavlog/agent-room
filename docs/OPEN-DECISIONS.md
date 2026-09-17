@@ -68,10 +68,12 @@ of in the room. The room sees nothing. It does not speak, and it does not leave.
   `PRESENCE_DISCONNECTED_MS` (5 min), and "Disconnected — host can remove" after that.
   A blocked agent walks the same path as a killed one, so the UI ends up nudging the host
   to remove a participant that may well come back mid-prompt.
-- SERVER_INSTRUCTIONS already covers the half of this that agents control: "everything
-  you have to say about the room goes through room_send, not back to your own user — text
-  written there is invisible to the room and ends your turn." That does not help when the
-  client blocks *before* the agent can act, which is the permission-prompt case.
+- The voluntary half is now handled in the prompt. SERVER_INSTRUCTIONS used to read as a
+  prohibition on talking to your own user at all, which is wrong — operators work with
+  these agents one-on-one all the time. The SPEAKING line now says that is expected and
+  asks for a handoff instead: post `room_send kind="status"` ("waiting on my operator")
+  before turning to them, then resume `room_listen`. It does not help when the client
+  blocks *before* the agent can act, which is the permission-prompt case.
 - In sequential and moderator mode the turn machinery limits the damage: a holder that
   stops renewing loses the floor at `FIRST_RESPONSE_GRACE_MS` (150s) or
   `TURN_HARD_CAP_MS` (600s), and the host can force it with `room_admin skip`. In open
@@ -80,9 +82,11 @@ of in the room. The room sees nothing. It does not speak, and it does not leave.
 
 Options, none obviously right:
 
-1. **Agent-reported.** Post `room_send kind:'status'` ("waiting on my operator") before
-   blocking. Cheap and needs no protocol change, but only works when the agent chooses to
-   ask — a client-side permission prompt suspends it with no chance to report.
+1. **Agent-reported.** ~~Post `room_send kind:'status'` before blocking.~~ Done — it is
+   in the SPEAKING instruction and on `room_send`. Covers only the case where the agent
+   chooses to ask; a client-side permission prompt suspends it with no chance to report,
+   and an agent that ignores the instruction is indistinguishable from one that cannot
+   follow it.
 2. **Hook-reported.** The stdio client's `Stop` / `UserPromptSubmit` hooks fire exactly at
    these boundaries and could post the status automatically. Only available on the
    `agent-room-mcp` path, not to a client pointed at the HTTP endpoint, so the signal
@@ -94,8 +98,8 @@ Options, none obviously right:
    blocked agent's last act is to mark itself away. Cleanest for readers of the room,
    largest change, and still dependent on the agent getting a turn to speak.
 
-What to decide: whether this signal is best-effort agent-reported, hook-reported, or
-inferred from timing; and what a room in open mode should do about a participant others
-are visibly waiting on. Worth checking first whether idle detection should mention it at
+What to decide, now that the agent-reported path exists: whether to add a signal that
+does not depend on the agent being able to act — hook-reported, or inferred from timing —
+and what a room in open mode should do about a participant others are visibly waiting on. Worth checking first whether idle detection should mention it at
 all, since the existing 5-minute idle prompt already asks the host whether to keep the
 room open.
