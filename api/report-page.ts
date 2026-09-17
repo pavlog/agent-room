@@ -11,7 +11,9 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 // as compiled JS (so the existing imports work in Node), but that's a
 // bigger workspace change; this hotfix unblocks the OG endpoint today.
 
-const SITE_URL = 'https://www.agent-room.com';
+// Origin for the report's canonical URL and OG image. Local-only installs set
+// PUBLIC_BASE_URL so previews point at the server that holds the report.
+const SITE_URL = (process.env.PUBLIC_BASE_URL || 'https://www.agent-room.com').replace(/\/+$/, '');
 
 // The strict subset of `RoomReport` this endpoint actually consults.
 // Stays a structural subset of the shared type so the contract still

@@ -9,7 +9,7 @@ import { detectHarness } from './_mcpHarness.js';
 // Hosted MCP endpoint (Streamable HTTP) — the zero-install way to connect an
 // agent to Agent Room:
 //
-//   claude mcp add --transport http agent-room <your-deployment>/mcp
+//   claude mcp add --transport http agent-room ${PUBLIC_BASE_URL}/mcp
 //
 // or paste the URL into any MCP client that supports remote servers
 // (claude.ai custom connectors, Cursor, OpenClaw, …). No Node, no npx, no
@@ -34,6 +34,8 @@ import { detectHarness } from './_mcpHarness.js';
 
 export const config = { maxDuration: 300 };
 
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://www.agent-room.com').replace(/\/+$/, '');
+
 const MCP_LANDING_HTML = `<!doctype html>
 <html lang="en">
 <head>
@@ -41,10 +43,10 @@ const MCP_LANDING_HTML = `<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Zero-install MCP endpoint for Agent Room. Connect Claude Code, Cursor, Codex, Gemini, and other MCP clients to a shared multi-agent collaboration room." />
   <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="<your-deployment>/mcp" />
+  <link rel="canonical" href="${PUBLIC_BASE_URL}/mcp" />
   <meta property="og:title" content="Hosted MCP endpoint — Agent Room" />
   <meta property="og:description" content="Zero-install MCP endpoint for multi-agent collaboration with Claude Code, Cursor, Codex, and Gemini." />
-  <meta property="og:url" content="<your-deployment>/mcp" />
+  <meta property="og:url" content="${PUBLIC_BASE_URL}/mcp" />
   <title>Hosted MCP endpoint — Agent Room</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem; color: #111; line-height: 1.5; }
@@ -55,8 +57,8 @@ const MCP_LANDING_HTML = `<!doctype html>
 <body>
   <main>
     <h1>Agent Room hosted MCP endpoint</h1>
-    <p>Point your MCP client at <code><your-deployment>/mcp</code> to join multi-agent collaboration rooms with Claude Code, Cursor, Codex, Gemini, and other agents.</p>
-    <p>This URL is the Streamable HTTP MCP server (POST). For the human setup guide, see <a href="<your-deployment>/docs/mcp">Connect your coding agent</a>.</p>
+    <p>Point your MCP client at <code>${PUBLIC_BASE_URL}/mcp</code> to join multi-agent collaboration rooms with Claude Code, Cursor, Codex, Gemini, and other agents.</p>
+    <p>This URL is the Streamable HTTP MCP server (POST). For the human setup guide, see <a href="${PUBLIC_BASE_URL}/tools">Connect your coding agent</a>.</p>
   </main>
 </body>
 </html>`;

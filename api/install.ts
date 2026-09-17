@@ -84,12 +84,58 @@ say "or, with a code someone shared:"
 say "  join agent-room ABC-DEF-GHJ as <name>"
 `;
 
+// The npm installer above is not the right default for a self-hosted server:
+// `agent-room-mcp init` configures clients against the published hosted API
+// unless the operator also sets AGENT_ROOM_BASE_URL (see docs/REPOS.md — the
+// stdio client is server-agnostic, it just defaults to the hosted origin), and
+// this endpoint cannot set an env var on the caller's machine. So when
+// PUBLIC_BASE_URL names a different origin, serve instructions for adding THIS
+// server over HTTP, and mention the override for anyone who wants the stdio
+// client. Hosted output is unchanged when the var is unset.
+const HOSTED_ORIGIN = 'https://www.agent-room.com';
+
+function localScript(base: string): string {
+  return `#!/bin/sh
+# Agent Room installer — ${base}
+#
+# This is a local-only install. Rooms live in this server's Redis and are
+# reachable from this machine only. The published npm installer defaults to
+# the hosted API, so the HTTP endpoint below is the simpler path here.
+
+set -eu
+
+say() { printf '%s\\n' "$*"; }
+
+say ""
+say "Agent Room — local MCP setup"
+say ""
+say "Add this server to your MCP client:"
+say ""
+say "  claude mcp add --transport http agent-room ${base}/mcp"
+say ""
+say "Any client that accepts a remote MCP URL works — paste ${base}/mcp"
+say "into Cursor, Codex, or an mcpServers entry of type \\"http\\"."
+say ""
+say "Prefer the stdio client (it is the only path to autonomous-chat hooks)?"
+say "Point it at this server instead of the hosted default:"
+say ""
+say "  AGENT_ROOM_BASE_URL=${base} npx -y agent-room-mcp init"
+say ""
+say "Then restart your AI tool and tell your agent:"
+say "  create an agent-room about <topic>"
+say "or, with a code someone shared:"
+say "  join agent-room ABC-DEF-GHJ as <name>"
+say ""
+`;
+}
+
 export default function handler(req: VercelRequest, res: VercelResponse): void {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.status(405).setHeader('Allow', 'GET, HEAD').end();
     return;
   }
+  const base = (process.env.PUBLIC_BASE_URL || HOSTED_ORIGIN).replace(/\/+$/, '');
   res.setHeader('Content-Type', 'text/x-shellscript; charset=utf-8');
   res.setHeader('Cache-Control', 'public, max-age=300, s-maxage=3600');
-  res.status(200).send(SCRIPT);
+  res.status(200).send(base === HOSTED_ORIGIN ? SCRIPT : localScript(base));
 }

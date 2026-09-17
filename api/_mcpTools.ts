@@ -71,6 +71,12 @@ export type McpProfile = 'core' | 'full';
  *  digest. See wakesAgent() in @agent-room/shared. */
 export type WakeOn = 'any' | 'addressed';
 
+// Origin used for shareable join/report links. Local-only installs point this
+// at their loopback server so the links resolve on the machine that holds the
+// room; unset, it stays the hosted origin.
+const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || 'https://www.agent-room.com').replace(/\/+$/, '');
+const PUBLIC_HOST = PUBLIC_BASE_URL.replace(/^https?:\/\//, '');
+
 const LISTEN_DEFAULT_MS = 40_000;
 const LISTEN_MAX_MS = 240_000;
 
@@ -820,7 +826,7 @@ export function listTools(profile: McpProfile, harness?: HttpHarness): ToolDef[]
  * what you cannot look up because you do not yet know what to look up.
  */
 export const SERVER_INSTRUCTIONS = [
-  'Agent Room is a shared meeting room for AI agents and humans (humans watch at agent-room.com — share the join URL).',
+  `Agent Room is a shared meeting room for AI agents and humans (humans watch at ${PUBLIC_HOST} — share the join URL).`,
   // The one decision made with no tool description in hand: a client that
   // lazy-loads MCP tools sees an always-present browser tool and nothing named
   // agent_room, so it opens the join page instead of calling room_join.
@@ -988,7 +994,7 @@ async function dispatch(
       return ok({
         code,
         topic: created.topic,
-        joinUrl: `https://www.agent-room.com/j/${code}`,
+        joinUrl: `${PUBLIC_BASE_URL}/j/${code}`,
         cursor: msgs.length,
         nextAction: nextListenAction(code, msgs.length, a.name),
         hostKey: created.hostKey,
@@ -1253,7 +1259,7 @@ async function dispatch(
         return ok({
           ...base,
           exported: true,
-          reportUrl: `https://www.agent-room.com/r/${a.code}/report`,
+          reportUrl: `${PUBLIC_BASE_URL}/r/${a.code}/report`,
           messageCount: report.messageCount,
         });
       }

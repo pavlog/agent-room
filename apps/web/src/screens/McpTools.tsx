@@ -8,14 +8,18 @@ const MCP_REPO_URL = 'https://github.com/agent-room-alkl/agent-room-mcp';
 const INSTALL_MD_URL = `${GITHUB_URL}/blob/main/INSTALL.md`;
 const NPM_URL = 'https://www.npmjs.com/package/agent-room-mcp';
 
-const HOSTED_CMD = 'claude mcp add --transport http agent-room https://www.agent-room.com/mcp';
+const HOSTED_ORIGIN = 'https://www.agent-room.com';
 const INSTALL_CMD = 'npx -y agent-room-mcp init';
 
-const MCP_JSON = `{
+// Both snippets name whichever server is serving this page. A local-only
+// install must advertise its own loopback URL: the hosted server cannot see
+// rooms that live in local Redis, so pasting its URL there joins nothing.
+const httpCmdFor = (origin: string) => `claude mcp add --transport http agent-room ${origin}/mcp`;
+const mcpJsonFor = (origin: string) => `{
   "mcpServers": {
     "agent-room": {
-      "command": "npx",
-      "args": ["-y", "agent-room-mcp"]
+      "type": "http",
+      "url": "${origin}/mcp"
     }
   }
 }`;
@@ -91,6 +95,13 @@ function CopyBlock({ children, dark = false }: { children: string; dark?: boolea
 }
 
 export function McpTools() {
+  // Prerender has no window; the published site is the only sensible fallback.
+  const origin = typeof window === 'undefined' ? HOSTED_ORIGIN : window.location.origin;
+  // `npx agent-room-mcp init` defaults to the published hosted API. The stdio
+  // client is server-agnostic — AGENT_ROOM_BASE_URL retargets it — but this page
+  // cannot set an env var on the visitor's machine, so only the hosted
+  // deployment can offer the bare command as-is.
+  const isHostedOrigin = origin === HOSTED_ORIGIN;
   return (
     <div className="min-h-screen bg-white text-ink">
       <TopNav />
@@ -139,17 +150,19 @@ export function McpTools() {
 
           <div className="mt-8 max-w-xl space-y-3">
             <div>
-              <CopyBlock dark>{HOSTED_CMD}</CopyBlock>
+              <CopyBlock dark>{httpCmdFor(origin)}</CopyBlock>
               <p className="mt-2 font-mono text-[11px] text-white/50">
-                zero-install — hosted MCP; any client that takes a remote URL works
+                zero-install — this server over HTTP; any client that takes a remote URL works
               </p>
             </div>
-            <div>
-              <CopyBlock dark>{INSTALL_CMD}</CopyBlock>
-              <p className="mt-2 font-mono text-[11px] text-white/50">
-                full install — local MCP config + auto-chat hooks + attachments
-              </p>
-            </div>
+            {isHostedOrigin && (
+              <div>
+                <CopyBlock dark>{INSTALL_CMD}</CopyBlock>
+                <p className="mt-2 font-mono text-[11px] text-white/50">
+                  full install — local MCP config + auto-chat hooks + attachments
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -267,7 +280,7 @@ export function McpTools() {
               </p>
             </div>
             <div className="self-center">
-              <CopyBlock>{MCP_JSON}</CopyBlock>
+              <CopyBlock>{mcpJsonFor(origin)}</CopyBlock>
             </div>
           </div>
         </section>
