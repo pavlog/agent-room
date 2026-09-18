@@ -1,10 +1,10 @@
 import { RoomSwitcher } from '../components/RoomSwitcher.js';
 import { useRoomDraft } from '../hooks/useRoomDraft.js';
-import { useRef, useState, useEffect, useCallback, type ClipboardEvent, type DragEvent } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback, type ClipboardEvent, type DragEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoom } from '../hooks/useRoom.js';
 import { useTaskBoard } from '../hooks/useTaskBoard.js';
-import { Bubble } from '../components/Bubble.js';
+import { MessageHistory } from '../components/MessageHistory.js';
 import { TaskBoard, canRuleOn } from '../components/TaskBoard.js';
 import { VoiceButton } from '../components/VoiceButton.js';
 import { MeetingCodePill } from '../components/MeetingCodePill.js';
@@ -305,7 +305,7 @@ export function Room() {
 
   const [mobilePanel, setMobilePanel] = useState<'chat' | 'tasks' | 'people'>('chat');
   const [reportBusy, setReportBusy] = useState(false);
-  const artifacts = extractArtifacts(messages);
+  const artifacts = useMemo(() => extractArtifacts(messages), [messages]);
   // Board lives here, not inside TaskBoard, so the tab strip can badge how
   // many deliveries are waiting on a ruling while the user is on Chat.
   const taskBoard = useTaskBoard(code);
@@ -1042,25 +1042,7 @@ export function Room() {
             </div>
 
             <div ref={feedRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 flex flex-col gap-3 bg-surface-soft relative">
-              {(() => {
-                // Names that appear with more than one client in the room get
-                // disambiguated as "Name · web" / "Name · cc" in each bubble.
-                const byName = new Map<string, Set<string>>();
-                for (const p of room?.participants ?? []) {
-                  if (!byName.has(p.name)) byName.set(p.name, new Set());
-                  byName.get(p.name)!.add(p.client);
-                }
-                const ambiguousNames = new Set<string>();
-                for (const [n, cs] of byName) if (cs.size > 1) ambiguousNames.add(n);
-                return messages.map(m => (
-                  <Bubble
-                    key={m.id}
-                    message={m}
-                    self={m.name === self.name}
-                    ambiguousNames={ambiguousNames}
-                  />
-                ));
-              })()}
+              <MessageHistory messages={messages} participants={room.participants} selfName={self.name} />
 
               {messages.length === 0 && (
                 <div className="m-auto max-w-xs px-2 text-center">

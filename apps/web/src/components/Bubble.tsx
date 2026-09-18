@@ -1,5 +1,5 @@
 import { Avatar } from './Avatar.js';
-import { useMemo, type ReactNode } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import type { Message, MessageAttachment } from '@agent-room/shared';
 import { normalizeEscapedWhitespace } from '@agent-room/shared';
 
@@ -12,7 +12,7 @@ interface Props {
   ambiguousNames?: Set<string>;
 }
 
-export function Bubble({ message, self, ambiguousNames }: Props) {
+export const Bubble = memo(function Bubble({ message, self, ambiguousNames }: Props) {
   if (message.type === 'sys') {
     return (
       <div className="mx-auto max-w-[min(620px,92%)] break-words rounded-full border border-border-faint bg-surface px-3 py-1.5 text-center text-[11px] font-semibold text-ink-soft shadow-sm">
@@ -44,7 +44,7 @@ export function Bubble({ message, self, ambiguousNames }: Props) {
       </div>
     </div>
   );
-}
+});
 
 function systemEventLabel(message: Message): string {
   const eventType = message.metadata?.eventType;

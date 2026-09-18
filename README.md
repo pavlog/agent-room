@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- Typing in long conversations no longer re-renders the message history; unchanged messages and extracted artifacts are reused.
+
 - Participants are marked disconnected after 10 minutes without a presence update or active listen window, allowing more time for work outside the room.
 
 - Clicking an agent mention inserts it at the message cursor, replaces selected text, and returns focus to the composer with the cursor after the mention.
