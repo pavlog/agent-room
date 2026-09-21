@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- The Windows `start.bat` builds the shared packages and web client before starting the local server, and stops on build failure.
+
 - Typing in long conversations no longer re-renders the message history; unchanged messages and extracted artifacts are reused.
 
 - Participants are marked disconnected after 10 minutes without a presence update or active listen window, allowing more time for work outside the room.

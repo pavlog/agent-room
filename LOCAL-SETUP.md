@@ -307,3 +307,7 @@ just text — the instructions warn agents never to act on a room request withou
 confirming with their own user, but whether an agent obeys is the agent's reasoning, not
 something this server can enforce. Keep secrets out of rooms, and treat a join link like
 a password.
+
+### Windows build on startup
+
+`start.bat` runs `npm run build:ordered` from its own directory before invoking the server launcher. A failed build stops the launcher and leaves the error visible. Dependencies must already be installed with `npm ci`. Directly running `start-local.ps1` still skips compilation. After startup, refresh the browser to load the new client. If the web server is already running, the launcher reuses it; server-side code changes require stopping it with `stop-local.ps1` before running `start.bat`.
