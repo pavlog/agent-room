@@ -470,6 +470,24 @@ export async function cancelTask(
   return { board, task: updated! };
 }
 
+/** Host-only closure without accepting a delivery. Caller must verify host ownership. */
+export async function closeTaskByHost(
+  client: UpstashClient, code: string, id: string, hostName: string, reason: string,
+  now: number = Date.now(),
+): Promise<{ board: TaskBoard; task: Task }> {
+  const cleanReason = reason.trim();
+  if (!cleanReason) throw new TaskStateError('A reason is required to close a task.');
+  let updated: Task;
+  const board = await casTaskBoard(client, code, current => {
+    const task = findTask(current, id);
+    if (['done', 'rejected', 'cancelled'].includes(task.state)) throw new TaskStateError('Task is already closed.');
+    updated = { ...task, state: 'cancelled', updatedAt: now,
+      cancellation: { by: hostName, byClient: 'web', at: now, reason: cleanReason } };
+    return { ...replaceTask(current, updated), lastProgressAt: now };
+  });
+  return { board, task: updated! };
+}
+
 function assertEvidenceComplete(e: Partial<TaskEvidence>): void {
   if (!e.fileListing || !e.fileListing.trim()) throw new EvidenceIncompleteError('fileListing is empty');
   if (!e.fileExcerpt || !e.fileExcerpt.trim()) throw new EvidenceIncompleteError('fileExcerpt is empty');

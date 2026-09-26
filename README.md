@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- Hosts can close open tasks with a recorded reason without approving their result, retaining evidence in Closed, and send chat reminders to the owner or pending verifier with a 30-second button cooldown.
+
 - The Windows `start.bat` builds the shared packages and web client before starting the local server, and stops on build failure.
 
 - Typing in long conversations no longer re-renders the message history; unchanged messages and extracted artifacts are reused.

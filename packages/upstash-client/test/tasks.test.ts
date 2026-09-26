@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   createClient,
   createTask,
+  closeTaskByHost,
   claimTask,
   submitTask,
   verifyTask,
@@ -683,5 +684,27 @@ describe('task board CAS (no lost updates / no blanking)', () => {
     ]);
     const board = (await getTaskBoard(client, CODE))!;
     expect(board.tasks).toHaveLength(3);
+  });
+});
+
+
+describe('host closure without delivery approval', () => {
+  beforeEach(() => vi.restoreAllMocks());
+  it('preserves submitted evidence and records the host reason', async () => {
+    installFakeRedis();
+    const client = createClient(ENV);
+    const { task } = await createTask(client, CODE, { title: 'Review candidate', createdBy: 'Host' });
+    await submitTask(client, CODE, task.id, OWNER, FULL_EVIDENCE);
+    const result = await closeTaskByHost(client, CODE, task.id, 'Host', 'Superseded by a later task');
+    expect(result.task.state).toBe('cancelled');
+    expect(result.task.evidence?.runOutput).toBe(FULL_EVIDENCE.runOutput);
+    expect(result.task.verdict).toBeUndefined();
+    expect(result.task.cancellation?.reason).toBe('Superseded by a later task');
+    await expect(closeTaskByHost(client, CODE, task.id, 'Host', 'Again')).rejects.toThrow('already closed');
+  });
+  it('requires a nonempty reason without writing', async () => {
+    const store = installFakeRedis();
+    await expect(closeTaskByHost(createClient(ENV), CODE, 'T-01', 'Host', '  ')).rejects.toThrow('reason');
+    expect(store.size).toBe(0);
   });
 });

@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ClientKind, Participant, RoomArtifact, Task, TaskState } from '@agent-room/shared';
 import { artifactLabel } from '@agent-room/shared';
 import {
   blockTask,
-  cancelTask,
+  closeTaskByHost,
+  appendMessage,
+  getRoom,
+  verifyHostKey,
   createTask,
   reassignTaskRoles,
   updateTask,
   verifyTask,
 } from '@agent-room/upstash-client';
+import type { UpstashClient } from '@agent-room/upstash-client';
 import type { useTaskBoard } from '../hooks/useTaskBoard.js';
 
 interface Props {
@@ -216,8 +220,15 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
   code: string;
   onMention: (text: string) => void;
 }) {
-  const [panel, setPanel] = useState<'none' | 'reject' | 'block' | 'assign'>('none');
+  const [panel, setPanel] = useState<'none' | 'reject' | 'block' | 'assign' | 'close'>('none');
   const [note, setNote] = useState('');
+  const [reminded, setReminded] = useState(false);
+  const reminding = useRef(false);
+  useEffect(() => {
+    if (!reminded) return;
+    const timer = setTimeout(() => { reminding.current = false; setReminded(false); }, 30000);
+    return () => clearTimeout(timer);
+  }, [reminded]);
   const tone = STATE_TONE[task.state];
 
   const iAmOwner = task.owner === me.name
@@ -227,9 +238,31 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
   const canReopen = !ended && isHost
     && (task.state === 'blocked' || task.state === 'rejected' || task.state === 'awaiting_review');
   const canAssign = !ended && isHost && !CLOSED.has(task.state);
-  const canCancel = !ended && isHost && !CLOSED.has(task.state)
-    && !task.evidence && !task.readinessNote?.trim();
-  const panelAllowed = panel === 'assign' ? canAssign : panel === 'reject' ? canRule : panel === 'block' ? canBlock : false;
+  const canClose = !ended && isHost && !CLOSED.has(task.state);
+  const reminderTarget = task.state === 'awaiting_review' ? task.verifier : task.owner;
+  const panelAllowed = panel === 'close' ? canClose : panel === 'assign' ? canAssign : panel === 'reject' ? canRule : panel === 'block' ? canBlock : false;
+
+  async function checkHost(client: UpstashClient) {
+    const key = localStorage.getItem(`room:${code}:hostKey`) ?? sessionStorage.getItem(`room:${code}:hostKey`) ?? undefined;
+    await verifyHostKey(client, code, key);
+    const room = await getRoom(client, code);
+    if (room.createdBy !== me.name || room.status !== 'active') throw new Error('An active room and its host are required.');
+  }
+
+  async function remind() {
+    if (!canClose || !reminderTarget || reminding.current) return;
+    reminding.current = true;
+    const ok = await run(async client => {
+      await checkHost(client);
+      await appendMessage(client, code, {
+        id: Date.now(), type: 'msg', name: me.name, role: 'Host', client: 'web',
+        initials: me.name.slice(0, 2), color: '#475569', time: Date.now(),
+        text: `@${reminderTarget} Reminder for ${task.id}: ${task.title}. ${task.state === 'awaiting_review' ? 'Please review the submitted evidence and record your decision.' : 'Please share progress and any blockers.'}`,
+      });
+      setReminded(true);
+    }, 'Reminder failed');
+    if (!ok) reminding.current = false;
+  }
 
   const closePanel = () => { setPanel('none'); setNote(''); };
 
@@ -271,9 +304,10 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
               Subtasks {task.subtasks.filter(s => s.done).length}/{task.subtasks.length}
             </p>
           ) : null}
-          {task.state === 'awaiting_review' && (task.readinessNote || task.evidence) && (
+          {(task.state === 'awaiting_review' || CLOSED.has(task.state)) && (task.readinessNote || task.evidence) && (
             <ReviewEvidence task={task} />
           )}
+          {task.cancellation && <Callout tone="rose" title={`Closed by ${task.cancellation.by}`} body={task.cancellation.reason ?? 'Closed without approval.'} />}
           {task.state === 'blocked' && task.blocked && (
             <Callout tone="rose" title={`Blocked by ${task.blocked.by}`} body={task.blocked.reason} />
           )}
@@ -355,19 +389,17 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                   Ask owner
                 </button>
               )}
-              {canCancel && (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void run(
-                    c => cancelTask(c, code, task.id, { name: me.name, client: 'web' }, 'Cancelled by host'),
-                    'Cancel failed',
-                  )}
-                  title="Drop this task as host. It closes as cancelled and stays on the board under Closed for the record."
-                  className={`${CTRL} ml-auto text-ink-faint hover:text-rose-600`}
-                >
-                  Cancel
-                </button>
+              {canClose && (
+                <>
+                  <button type="button" disabled={busy || reminded || !reminderTarget} onClick={() => void remind()}
+                    title={reminderTarget ? `Send a reminder to ${reminderTarget} in the room chat. Available again after 30 seconds.` : 'Assign an owner or verifier before sending a reminder.'}
+                    className={`${CTRL} border border-border text-accent`}>
+                    {reminded ? 'Reminder sent' : 'Remind'}
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => setPanel('close')}
+                    title="Close without approving the result. A reason is required; evidence stays in Closed."
+                    className={`${CTRL} ml-auto text-ink-faint hover:text-rose-600`}>Close</button>
+                </>
               )}
             </div>
           ) : panel === 'assign' ? (
@@ -387,8 +419,8 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
           ) : (
             <NotePanel
               id={`task-note-${task.id}`}
-              label={panel === 'reject' ? 'What has to change before this passes?' : 'What exactly is missing?'}
-              submitLabel={panel === 'reject' ? 'Reject task' : 'Mark blocked'}
+              label={panel === 'close' ? 'Why is this task being closed without approval?' : panel === 'reject' ? 'What has to change before this passes?' : 'What exactly is missing?'}
+              submitLabel={panel === 'close' ? 'Close task' : panel === 'reject' ? 'Reject task' : 'Mark blocked'}
               destructive
               value={note}
               onChange={setNote}
@@ -396,10 +428,12 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
               onCancel={closePanel}
               onSubmit={async () => {
                 const ok = await run(
-                  c => panel === 'reject'
+                  async c => panel === 'close'
+                    ? (await checkHost(c), closeTaskByHost(c, code, task.id, me.name, note.trim()))
+                    : panel === 'reject'
                     ? verifyTask(c, code, task.id, { name: me.name, client: 'web' }, 'rejected', note.trim())
                     : blockTask(c, code, task.id, { name: me.name, client: 'web' }, note.trim()),
-                  panel === 'reject' ? 'Reject failed' : 'Block failed',
+                  panel === 'close' ? 'Close failed' : panel === 'reject' ? 'Reject failed' : 'Block failed',
                 );
                 if (ok) closePanel();
               }}
@@ -417,7 +451,7 @@ function ReviewEvidence({ task }: { task: Task }) {
   return (
     <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
       <p className="text-[12px] leading-relaxed text-amber-900 break-words">
-        {task.readinessNote ?? 'Evidence submitted and waiting on a peer ruling.'}
+        {task.readinessNote ?? (CLOSED.has(task.state) ? 'Submitted evidence retained for the record.' : 'Evidence submitted and waiting on a peer ruling.')}
       </p>
       {ev && (
         <>
