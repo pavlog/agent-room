@@ -451,8 +451,11 @@ function ReviewEvidence({ task }: { task: Task }) {
   return (
     <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
       <p className="text-[12px] leading-relaxed text-amber-900 break-words">
-        {task.readinessNote ?? (CLOSED.has(task.state) ? 'Submitted evidence retained for the record.' : 'Evidence submitted and waiting on a peer ruling.')}
+        {CLOSED.has(task.state)
+          ? 'Submitted evidence retained for the record.'
+          : task.verifier ? `Waiting for review by ${task.verifier}.` : 'Waiting for review. No verifier assigned.'}
       </p>
+      {task.readinessNote && <p className="mt-1 text-[12px] leading-relaxed text-amber-900 break-words">{task.readinessNote}</p>}
       {ev && (
         <>
           <button
