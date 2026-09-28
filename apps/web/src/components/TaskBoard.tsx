@@ -251,7 +251,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
 
   async function closeWithNote(client: UpstashClient, announce: boolean) {
     await checkHost(client);
-    await closeTaskByHost(client, code, task.id, me.name, note.trim());
+    await closeTaskByHost(client, code, task.id, me.name, note.trim() || (announce ? '' : 'Closed silently by host.'));
     if (!announce) return;
     const mentions = [...new Set([task.owner, task.verifier].filter(Boolean))].map(name => `@${name}`).join(' ');
     try {
@@ -439,9 +439,10 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
           ) : (
             <NotePanel
               id={`task-note-${task.id}`}
-              label={panel === 'close' ? 'Closing message / instructions to post in the room' : panel === 'closeSilent' ? 'Reason for closing silently (saved on the task only)' : panel === 'reject' ? 'What has to change before this passes?' : 'What exactly is missing?'}
+              label={panel === 'close' ? 'Closing message / instructions to post in the room' : panel === 'closeSilent' ? 'Optional note (saved on the task only)' : panel === 'reject' ? 'What has to change before this passes?' : 'What exactly is missing?'}
               submitLabel={panel === 'close' ? 'Close and notify' : panel === 'closeSilent' ? 'Close silently' : panel === 'reject' ? 'Reject task' : 'Mark blocked'}
               destructive
+              allowEmpty={panel === 'closeSilent'}
               value={note}
               onChange={setNote}
               busy={busy}
@@ -516,11 +517,12 @@ function Callout({ tone, title, body }: { tone: 'emerald' | 'rose'; title: strin
   );
 }
 
-function NotePanel({ id, label, submitLabel, destructive, value, onChange, busy, onCancel, onSubmit }: {
+function NotePanel({ id, label, submitLabel, destructive, allowEmpty = false, value, onChange, busy, onCancel, onSubmit }: {
   id: string;
   label: string;
   submitLabel: string;
   destructive?: boolean;
+  allowEmpty?: boolean;
   value: string;
   onChange: (v: string) => void;
   busy: boolean;
@@ -540,9 +542,9 @@ function NotePanel({ id, label, submitLabel, destructive, value, onChange, busy,
       <div className="mt-2 flex gap-2">
         <button
           type="button"
-          disabled={busy || !value.trim()}
+          disabled={busy || (!allowEmpty && !value.trim())}
           onClick={onSubmit}
-          title={destructive ? 'Apply this to the task and record your note on it. Needs a reason first.' : 'Save this note to the task. Needs some text first.'}
+          title={allowEmpty ? 'Close silently. A note is optional; no message is sent to the room.' : destructive ? 'Apply this to the task and record your note on it. Needs a reason first.' : 'Save this note to the task. Needs some text first.'}
           className={`${CTRL} flex-1 ${destructive ? 'bg-rose-600 text-white hover:bg-rose-700' : 'bg-accent text-white hover:opacity-90'}`}
         >
           {submitLabel}
