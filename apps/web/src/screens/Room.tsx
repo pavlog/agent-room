@@ -18,7 +18,7 @@ import { copyText } from '../lib/copy.js';
 import { templateById } from '../lib/templates.js';
 import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENTS_PER_MESSAGE, deleteRoomBlobs, formatBytes, uploadAttachment } from '../lib/upload.js';
 
-const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour — long enough that humans + agents discussing intermittently don't trip it
+const IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000; // 12 hours of inactivity before the browser offers to close the room
 const AUTO_CLOSE_COUNTDOWN = 5;          // seconds
 interface SelfIdentity { name: string; role: string }
 
@@ -1067,7 +1067,7 @@ export function Room() {
 
               {showIdlePrompt && !ended && (
                 <div className="sticky bottom-0 mx-auto bg-white border border-border rounded-xl shadow-lg p-4 text-center max-w-sm">
-                  <p className="text-sm font-semibold text-ink mb-1">No activity for 1 hour</p>
+                  <p className="text-sm font-semibold text-ink mb-1">No activity for 12 hours</p>
                   <p className="text-xs text-ink-soft mb-3">Meeting will close in <span className="font-bold text-red-600">{countdown}s</span></p>
                   <div className="flex gap-2 justify-center">
                     <button onClick={dismissIdlePrompt} title="Keep the room open and reset the idle countdown." className="px-4 py-1.5 bg-accent text-white text-xs font-semibold rounded-lg">
