@@ -220,7 +220,7 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
   code: string;
   onMention: (text: string) => void;
 }) {
-  const [panel, setPanel] = useState<'none' | 'reject' | 'block' | 'assign' | 'close'>('none');
+  const [panel, setPanel] = useState<'none' | 'reject' | 'block' | 'assign' | 'close' | 'closeSilent'>('none');
   const [note, setNote] = useState('');
   const [reminded, setReminded] = useState(false);
   const reminding = useRef(false);
@@ -240,13 +240,30 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
   const canAssign = !ended && isHost && !CLOSED.has(task.state);
   const canClose = !ended && isHost && !CLOSED.has(task.state);
   const reminderTarget = task.state === 'awaiting_review' ? task.verifier : task.owner;
-  const panelAllowed = panel === 'close' ? canClose : panel === 'assign' ? canAssign : panel === 'reject' ? canRule : panel === 'block' ? canBlock : false;
+  const panelAllowed = (panel === 'close' || panel === 'closeSilent') ? canClose : panel === 'assign' ? canAssign : panel === 'reject' ? canRule : panel === 'block' ? canBlock : false;
 
   async function checkHost(client: UpstashClient) {
     const key = localStorage.getItem(`room:${code}:hostKey`) ?? sessionStorage.getItem(`room:${code}:hostKey`) ?? undefined;
     await verifyHostKey(client, code, key);
     const room = await getRoom(client, code);
     if (room.createdBy !== me.name || room.status !== 'active') throw new Error('An active room and its host are required.');
+  }
+
+  async function closeWithNote(client: UpstashClient, announce: boolean) {
+    await checkHost(client);
+    await closeTaskByHost(client, code, task.id, me.name, note.trim());
+    if (!announce) return;
+    const mentions = [...new Set([task.owner, task.verifier].filter(Boolean))].map(name => `@${name}`).join(' ');
+    try {
+      await appendMessage(client, code, {
+        id: Date.now(), type: 'msg', name: me.name, role: 'Host', client: 'web',
+        initials: me.name.slice(0, 2), color: '#475569', time: Date.now(),
+        text: `${mentions}${mentions ? ' ' : ''}Host closed ${task.id}: ${task.title}.\n${note.trim()}`,
+      });
+    } catch {
+      const { showToast } = await import('./Toast.js');
+      showToast('Task closed, but the room notification failed. The text is saved in Closed; copy it to chat to notify the room.');
+    }
   }
 
   async function remind() {
@@ -397,8 +414,11 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
                     {reminded ? 'Reminder sent' : 'Remind'}
                   </button>
                   <button type="button" disabled={busy} onClick={() => setPanel('close')}
-                    title="Close without approving the result. A reason is required; evidence stays in Closed."
+                    title="Close without approving the result and post your text in the room, mentioning the owner and verifier."
                     className={`${CTRL} ml-auto text-ink-faint hover:text-rose-600`}>Close</button>
+                  <button type="button" disabled={busy} onClick={() => setPanel('closeSilent')}
+                    title="Close with a recorded reason but do not send a room message. Evidence stays in Closed."
+                    className={`${CTRL} text-ink-faint hover:text-rose-600`}>Close silent</button>
                 </>
               )}
             </div>
@@ -419,8 +439,8 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
           ) : (
             <NotePanel
               id={`task-note-${task.id}`}
-              label={panel === 'close' ? 'Why is this task being closed without approval?' : panel === 'reject' ? 'What has to change before this passes?' : 'What exactly is missing?'}
-              submitLabel={panel === 'close' ? 'Close task' : panel === 'reject' ? 'Reject task' : 'Mark blocked'}
+              label={panel === 'close' ? 'Closing message / instructions to post in the room' : panel === 'closeSilent' ? 'Reason for closing silently (saved on the task only)' : panel === 'reject' ? 'What has to change before this passes?' : 'What exactly is missing?'}
+              submitLabel={panel === 'close' ? 'Close and notify' : panel === 'closeSilent' ? 'Close silently' : panel === 'reject' ? 'Reject task' : 'Mark blocked'}
               destructive
               value={note}
               onChange={setNote}
@@ -428,12 +448,12 @@ function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention 
               onCancel={closePanel}
               onSubmit={async () => {
                 const ok = await run(
-                  async c => panel === 'close'
-                    ? (await checkHost(c), closeTaskByHost(c, code, task.id, me.name, note.trim()))
+                  async c => panel === 'close' || panel === 'closeSilent'
+                    ? closeWithNote(c, panel === 'close')
                     : panel === 'reject'
                     ? verifyTask(c, code, task.id, { name: me.name, client: 'web' }, 'rejected', note.trim())
                     : blockTask(c, code, task.id, { name: me.name, client: 'web' }, note.trim()),
-                  panel === 'close' ? 'Close failed' : panel === 'reject' ? 'Reject failed' : 'Block failed',
+                  panel === 'close' || panel === 'closeSilent' ? 'Close failed' : panel === 'reject' ? 'Reject failed' : 'Block failed',
                 );
                 if (ok) closePanel();
               }}
