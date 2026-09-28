@@ -74,17 +74,50 @@ export function Room() {
     return () => window.removeEventListener('beforeunload', warnBeforeUnload);
   }, [attachBusy, attachments.length, text, draftSaved]);
 
-  // Auto-grow the textarea: shrink to min, then expand to scrollHeight up to max.
-  // Runs after every value change (typed, pasted, Draft injected, voice transcript).
+  // Measure in an isolated off-screen textarea. Never collapse the live
+  // composer: doing so relayouts the entire conversation on every keystroke.
+  const measureRef = useRef<HTMLTextAreaElement | null>(null);
   function autoGrow(el: HTMLTextAreaElement | null) {
     if (!el) return;
-    el.style.height = 'auto';
-    const next = Math.min(Math.max(el.scrollHeight, TEXTAREA_MIN_HEIGHT), TEXTAREA_MAX_HEIGHT);
-    el.style.height = `${next}px`;
+    let measure = measureRef.current;
+    if (!measure) {
+      measure = document.createElement('textarea');
+      measure.tabIndex = -1;
+      measure.setAttribute('aria-hidden', 'true');
+      measure.style.cssText = 'position:fixed;left:-10000px;top:0;visibility:hidden;pointer-events:none;height:0;min-height:0;max-height:none;overflow:hidden;contain:layout style paint;';
+      document.body.appendChild(measure);
+      measureRef.current = measure;
+    }
+    const style = getComputedStyle(el);
+    for (const property of ['font-family', 'font-size', 'font-weight', 'font-style', 'line-height', 'letter-spacing', 'text-indent', 'text-transform', 'white-space', 'word-break', 'overflow-wrap', 'tab-size', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right', 'border-top-width', 'border-bottom-width', 'border-left-width', 'border-right-width', 'border-style', 'box-sizing']) {
+      measure.style.setProperty(property, style.getPropertyValue(property));
+    }
+    measure.style.width = `${el.getBoundingClientRect().width}px`;
+    measure.value = el.value;
+    const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+    const next = Math.min(Math.max(measure.scrollHeight + border, TEXTAREA_MIN_HEIGHT), TEXTAREA_MAX_HEIGHT);
+    if (el.style.height !== `${next}px`) el.style.height = `${next}px`;
   }
   useEffect(() => {
     autoGrow(textareaRef.current);
   }, [text]);
+  useEffect(() => {
+    const el = textareaRef.current;
+    let width = 0;
+    const observer = new ResizeObserver(entries => {
+      const nextWidth = entries[0]?.contentRect.width ?? 0;
+      if (nextWidth > 0 && nextWidth !== width) {
+        width = nextWidth;
+        autoGrow(el);
+      }
+    });
+    if (el) observer.observe(el);
+    return () => {
+      observer.disconnect();
+      measureRef.current?.remove();
+      measureRef.current = null;
+    };
+  }, [!!room, !!self, room?.status]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 10_000);
