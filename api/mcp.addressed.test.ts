@@ -40,6 +40,10 @@ vi.mock('./_mcpRoomClient.js', async (importOriginal) => ({
   sweepRoom: async () => room,
   setListenUntil: async () => {},
   listMessages: (...a: unknown[]) => listMessages(...a),
+  readMessageBatch: async (...a: unknown[]) => {
+    const messages = await listMessages(...a);
+    return { messages, cursor: Number(a[2]) + messages.length, historyTruncated: false };
+  },
 }));
 
 const base = { id: 1, initials: 'HO', color: '#000', role: '', client: 'web' as const, time: 1 };

@@ -30,7 +30,7 @@ function msgsKey(code: string): string { return `room-msgs:${code}`; }
 // (witnessed: 499 in list, +2 RPUSH, LTRIM keeps last 500 → first new
 // message is now at index 498, but cursor=499 LRANGEs from 499 and only
 // returns the second new message). The counter key is INCRed in the same
-// pipeline as RPUSH/LTRIM so it can never drift relative to the list.
+// atomic script as RPUSH/LTRIM so it cannot drift relative to the list.
 function msgCountKey(code: string): string { return `room-msg-count:${code}`; }
 
 /** Next poll cursor after a full `listMessages(..., 0)` when the room has a counter key; `null` = legacy room. */
@@ -302,7 +302,7 @@ export async function appendMessage(
 
 // Internal helper: write a message to the Redis list, pinning TTL to the
 // room's hard 90-day deadline and keeping the absolute-count counter in lockstep.
-// INCR on the count key MUST sit in the same pipeline as RPUSH so the count
+// The append script updates the count and list atomically so the count
 // stays in lock-step with the list — listMessages relies on the invariant
 // `totalCount - listLen = number of LTRIMmed entries` to compensate cursors.
 // EXPIREAT (a fixed creation+TTL deadline) rather than EXPIRE means the
@@ -319,13 +319,17 @@ async function rpushMessage(
   // ("Cannot read properties of undefined (reading 'length')" in Bubble
   // rendering). Coerce to '' at the single write choke point.
   const safe = typeof message.text === 'string' ? message : { ...message, text: '' };
-  await client.pipeline([
-    ['RPUSH', msgsKey(code), JSON.stringify(safe)],
-    ['INCR', msgCountKey(code)],
-    ['LTRIM', msgsKey(code), -MAX_MESSAGES_PER_ROOM, -1],
-    ['EXPIREAT', msgsKey(code), expireAt],
-    ['EXPIREAT', msgCountKey(code), expireAt],
-  ]);
+  await client.command(['EVAL', `
+-- agent-room-message-append
+local len = redis.call('LLEN', KEYS[1])
+redis.call('SETNX', KEYS[2], len)
+redis.call('RPUSH', KEYS[1], ARGV[1])
+local count = redis.call('INCR', KEYS[2])
+redis.call('LTRIM', KEYS[1], -tonumber(ARGV[2]), -1)
+redis.call('EXPIREAT', KEYS[1], ARGV[3])
+redis.call('EXPIREAT', KEYS[2], ARGV[3])
+return count
+`, 2, msgsKey(code), msgCountKey(code), JSON.stringify(safe), MAX_MESSAGES_PER_ROOM, expireAt]);
 }
 
 // Append a server-originated system message. Bypasses the speaker/mute/turn
@@ -405,4 +409,27 @@ export async function listMessages(
 export function buildTaskSubmitStatusText(taskId: string, evidenceSummary: string): string {
   const summary = evidenceSummary.trim().replace(/\s+/g, ' ').slice(0, 180);
   return `[STATUS] 待审核 / awaiting_review ${taskId}: ${summary || '(no run output)'}`;
+}
+
+/** A single Redis snapshot: the cursor always describes exactly this batch. */
+export async function readMessageBatch(client: UpstashClient, code: string, since: number, includeMessages = true): Promise<{ messages: Message[]; cursor: number; historyTruncated: boolean }> {
+  if (!Number.isSafeInteger(since) || since < 0) throw new Error('Invalid message cursor');
+  const result = await client.command<[number, number, string[]]>(['EVAL', `
+-- agent-room-message-snapshot
+local count = redis.call('GET', KEYS[2])
+local len = redis.call('LLEN', KEYS[1])
+local total = tonumber(count) or len
+if ARGV[2] == '0' then return {total, 0, {}} end
+local trimmed = math.max(0, total - len)
+local since = tonumber(ARGV[1])
+local start = math.max(0, since - trimmed)
+local rows = redis.call('LRANGE', KEYS[1], start, -1)
+return {math.max(since, trimmed + start + #rows), since < trimmed and 1 or 0, rows}
+`, 2, msgsKey(code), msgCountKey(code), since, includeMessages ? 1 : 0]);
+  if (!Array.isArray(result) || !Array.isArray(result[2])) throw new Error('Invalid message snapshot');
+  return { cursor: Number(result[0]), historyTruncated: result[1] === 1, messages: result[2].map(line => {
+    const message = JSON.parse(line) as Message;
+    if (typeof message.text !== 'string') message.text = '';
+    return message;
+  }) };
 }

@@ -103,3 +103,8 @@ does not depend on the agent being able to act — hook-reported, or inferred fr
 and what a room in open mode should do about a participant others are visibly waiting on. Worth checking first whether idle detection should mention it at
 all, since the existing 5-minute idle prompt already asks the host whether to keep the
 room open.
+
+
+## Local image attachment directories
+
+MCP image hydration now supports explicit trusted URL directory prefixes through `AGENT_ROOM_IMAGE_BASE_URLS`. The actual directory served by external local preview services has not been specified. Configure a known attachment directory before enabling that service; do not trust every path or port on localhost. This does not affect cursor and digest fixes.

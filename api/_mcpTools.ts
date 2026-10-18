@@ -42,6 +42,7 @@ import {
   getRoom,
   joinRoom,
   listMessages,
+  readMessageBatch,
   reactivateRoom,
   removeParticipant,
   setListenUntil,
@@ -264,10 +265,20 @@ function ok(value: unknown, extra: McpContent[] = []): McpToolResult {
   };
 }
 
-/** Only our public object storage — never follow an attacker-planted URL. */
+/** Public object storage or explicitly configured attachment directories only. */
 export function isTrustedAttachmentImageUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
+    if (parsed.username || parsed.password || /%(?:2e|2f|5c)/i.test(parsed.pathname)) return false;
+    // Local image access requires an exact origin and attachment path prefix.
+    for (const value of (process.env.AGENT_ROOM_IMAGE_BASE_URLS || '').split(',').filter(Boolean)) {
+      try {
+        const base = new URL(value.trim());
+        const prefix = base.pathname.replace(/\/$/, '') + '/';
+        if (['http:', 'https:'].includes(base.protocol) && !base.username && !base.password &&
+            prefix !== '/' && parsed.origin === base.origin && parsed.pathname.startsWith(prefix)) return true;
+      } catch { /* Ignore invalid configuration. */ }
+    }
     if (parsed.protocol !== 'https:') return false;
     const r2 = process.env.R2_PUBLIC_URL?.replace(/\/$/, '');
     if (r2 && url.startsWith(`${r2}/`)) return true;
@@ -298,7 +309,7 @@ export async function hydrateListenImages(
   const latest = images.slice(-LISTEN_IMAGE_LIMIT);
   const parts = await Promise.all(latest.map(async (image): Promise<McpImageContent | null> => {
     try {
-      const response = await fetchFn(image.url, { signal: AbortSignal.timeout(8_000) });
+      const response = await fetchFn(image.url, { signal: AbortSignal.timeout(8_000), redirect: 'error' });
       if (!response.ok) return null;
       const bytes = Buffer.from(await response.arrayBuffer());
       if (bytes.length === 0 || bytes.length > LISTEN_IMAGE_MAX_BYTES) return null;
@@ -337,6 +348,7 @@ function contextFields(messages: Message[]) {
 type ListenResult = {
   messages: Message[];
   cursor: number;
+  historyTruncated?: boolean;
   terminated?: 'room_ended' | 'kicked';
   /** Set only when the hold ended early because this batch was actually for
    *  the caller — wakesAgent (an @mention or a metadata turn/assignment), or a
@@ -388,6 +400,11 @@ export async function listMessagesResilient(
   }
 }
 
+async function readBatchResilient(client: RemoteRoomClient, code: string, since: number) {
+  try { return { ok: true as const, ...await readMessageBatch(client, code, since) }; }
+  catch (error) { return { ok: false as const, error }; }
+}
+
 /**
  * Owns the presence lease; the polling itself is runListenInner. Renewing while
  * we poll and releasing in `finally` means every exit path (message, quiet
@@ -433,6 +450,8 @@ async function runListenInner(
   // it is what the digest returns if the hold times out with nobody calling
   // on us. Nothing is dropped; it just arrives in one turn instead of N.
   let held: ListenResult['messages'] = [];
+  let heldCursor = since;
+  let historyTruncated = false;
   const selective = wakeOn === 'addressed' && !!selfName;
   // Refreshed on every poll, because it is a fact about the room and the room
   // changes under us: a second agent joining has to restore the @ filter within
@@ -461,7 +480,7 @@ async function runListenInner(
         };
       }
     } catch { /* transient — keep listening */ }
-    const listed = await listMessagesResilient(listMessages, client, code, since);
+    const listed = await readBatchResilient(client, code, since);
     if (!listed.ok) {
       await new Promise(r => setTimeout(r, 2000));
       continue;
@@ -488,22 +507,26 @@ async function runListenInner(
         wakesAgent(m, selfName as string) || (sole && m.type === 'msg' && m.name !== selfName);
       const addressed = selective && msgs.some(forMe);
       if (!selective || addressed) {
-        const cursor = since + msgs.length;
+        const cursor = listed.cursor;
         return {
           messages: msgs,
+          historyTruncated: listed.historyTruncated,
           cursor,
           ...(addressed ? { addressedYou: true } : {}),
           hint: `${msgs.length} new message(s). Reply with room_send if appropriate. ${NEXT_LISTEN(code, cursor)}`,
         };
       }
       held = msgs;
+      heldCursor = listed.cursor;
+      historyTruncated = listed.historyTruncated;
     }
     await new Promise(r => setTimeout(r, 2000));
   }
   if (held.length > 0) {
-    const cursor = since + held.length;
+    const cursor = heldCursor;
     return {
       messages: held,
+      historyTruncated,
       cursor,
       hint: `${held.length} message(s) arrived while you held, none addressed to you — here they are together. `
         + `Read them, speak only if you have something to add. ${NEXT_LISTEN(code, cursor)}`,
@@ -1010,16 +1033,16 @@ async function dispatch(
         lastSeenAt: Date.now(),
       };
       await joinRoom(client, code, participant, { hostKey: created.hostKey });
-      const msgs = await listMessages(client, code, 0);
+      const { cursor } = await readMessageBatch(client, code, 0, false);
       return ok({
         code,
         topic: created.topic,
         joinUrl: `${PUBLIC_BASE_URL}/j/${code}`,
-        cursor: msgs.length,
-        nextAction: nextListenAction(code, msgs.length, a.name),
+        cursor,
+        nextAction: nextListenAction(code, cursor, a.name),
         hostKey: created.hostKey,
         roleBrief: roleBriefFor(a.role ?? ''),
-        hint: `Room created — share the joinUrl; keep the hostKey private. ${NEXT_LISTEN(code, msgs.length)} ${listenWindowHint(harness)}`,
+        hint: `Room created — share the joinUrl; keep the hostKey private. ${NEXT_LISTEN(code, cursor)} ${listenWindowHint(harness)}`,
       });
     }
 
@@ -1051,7 +1074,7 @@ async function dispatch(
           );
         } catch { /* greeting is nice-to-have */ }
       }
-      const msgs = await listMessages(client, a.code, 0);
+      const { messages: msgs, cursor } = await readMessageBatch(client, a.code, 0);
       const recentMessages = msgs.slice(-16).map(slimMessage);
       return ok({
         code: a.code,
@@ -1069,10 +1092,10 @@ async function dispatch(
           client: p.client,
           canSpeak: p.canSpeak !== false,
         })),
-        cursor: msgs.length,
+        cursor,
         nextAction: nextListenAction(
           a.code,
-          msgs.length,
+          cursor,
           finalName,
           listenPrefsFor({ wakeOn: 'any' }, updated, isConfiguredModerator(updated, finalName, 'cc')),
         ),
@@ -1082,8 +1105,8 @@ async function dispatch(
         roomPolicy: policyFor(updated, finalName),
         policyVersion: ROOM_POLICY_VERSION,
         hint: muted
-          ? `Joined as "${finalName}" but the host has muted you — keep listening until unmuted. ${NEXT_LISTEN(a.code, msgs.length)} ${listenWindowHint(harness)}`
-          : `Joined as "${finalName}". ${NEXT_LISTEN(a.code, msgs.length)} ${listenWindowHint(harness)}`,
+          ? `Joined as "${finalName}" but the host has muted you — keep listening until unmuted. ${NEXT_LISTEN(a.code, cursor)} ${listenWindowHint(harness)}`
+          : `Joined as "${finalName}". ${NEXT_LISTEN(a.code, cursor)} ${listenWindowHint(harness)}`,
       }, await hydrateListenImages(recentMessages));
     }
 
@@ -1106,15 +1129,15 @@ async function dispatch(
         reason?: string;
         metadata?: { roleAtSend?: string; turnId?: number; extendsTurn?: boolean };
       };
-      const msgs = await listMessages(client, a.code, 0);
+      const { cursor } = await readMessageBatch(client, a.code, 0, false);
       if (result && result.appended === false && result.reason === 'no_addition') {
         return ok({
           sent: true,
           appended: false,
           reason: 'no_addition',
-          cursor: msgs.length,
-          nextAction: nextListenAction(a.code, msgs.length, senderName),
-          hint: `Your "__no_addition__" was accepted — the supplement turn was skipped without posting. ${NEXT_LISTEN(a.code, msgs.length)}`,
+          cursor,
+          nextAction: nextListenAction(a.code, cursor, senderName),
+          hint: `Your "__no_addition__" was accepted — the supplement turn was skipped without posting. ${NEXT_LISTEN(a.code, cursor)}`,
         });
       }
       const extended = result?.metadata?.extendsTurn === true;
@@ -1131,12 +1154,12 @@ async function dispatch(
       return ok({
         sent: true,
         appended: true,
-        cursor: msgs.length,
-        nextAction: nextListenAction(a.code, msgs.length, senderName),
+        cursor,
+        nextAction: nextListenAction(a.code, cursor, senderName),
         ...(postedAsStatus ? { extendsTurn: extended } : {}),
         ...(result?.metadata?.roleAtSend ? { roleAtSend: result.metadata.roleAtSend } : {}),
         ...(demoted ? { degradedToStatus: true } : {}),
-        hint: `${postedAsStatus ? (extended ? 'Status posted — turn deadline renewed.' : 'Status posted (no turn change).') : sentHint} ${NEXT_LISTEN(a.code, msgs.length)}`,
+        hint: `${postedAsStatus ? (extended ? 'Status posted — turn deadline renewed.' : 'Status posted (no turn change).') : sentHint} ${NEXT_LISTEN(a.code, cursor)}`,
       });
     }
 
@@ -1145,7 +1168,7 @@ async function dispatch(
       const selfName = typeof a.name === 'string' && a.name.trim() ? a.name.trim() : undefined;
       // timeoutMs: 0 → non-blocking history read (the old room_list_messages).
       if (a.timeoutMs === 0) {
-        const listed = await listMessagesResilient(listMessages, client, a.code, since);
+        const listed = await readBatchResilient(client, a.code, since);
         if (!listed.ok) {
           return ok({
             messages: [],
@@ -1155,20 +1178,15 @@ async function dispatch(
             hint: `Transient listMessages failure — retry. ${NEXT_LISTEN(a.code, since)}`,
           });
         }
-        const cursor = since + listed.messages.length;
-        const all = since === 0
-          ? listed.messages
-          : await Promise.resolve(listMessages(client, a.code, 0)).then(
-            fetched => fetched ?? listed.messages,
-            () => listed.messages,
-          );
+        const cursor = listed.cursor;
         const messages = listed.messages.map(slimMessage);
         return ok({
           messages,
           cursor,
           ...listenStatusFields(),
           nextAction: nextListenAction(a.code, cursor, selfName),
-          ...contextFields(all),
+          historyTruncated: listed.historyTruncated,
+          ...((since === 0 || listed.historyTruncated) ? contextFields(listed.messages) : {}),
           hint: NEXT_LISTEN(a.code, cursor),
         }, await hydrateListenImages(messages));
       }
@@ -1208,22 +1226,13 @@ async function dispatch(
         } catch { /* best effort */ }
       }
       const nextPrefs = listenPrefsFor({ timeoutMs, wakeOn }, room, isModerator, harness);
-      let digestFields = {};
-      if (!result.terminated && result.messages.length > 0) {
-        // since=0 already returned the full list; don't issue a second read
-        // (and don't assume the client always returns a thenable).
-        const all = since === 0
-          ? result.messages
-          : await Promise.resolve(listMessages(client, a.code, 0)).then(
-            listed => listed ?? result.messages,
-            () => result.messages,
-          );
-        digestFields = contextFields(all);
-      }
+      const digestFields = !result.terminated && result.messages.length > 0 && (since === 0 || result.historyTruncated)
+        ? contextFields(result.messages) : {};
       const messages = result.messages.map(slimMessage);
       return ok({
         messages,
         cursor: result.cursor,
+        historyTruncated: result.historyTruncated ?? false,
         ...digestFields,
         ...listenStatusFields(result.terminated),
         ...(result.addressedYou ? { addressedYou: true } : {}),

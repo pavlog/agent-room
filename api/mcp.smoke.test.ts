@@ -25,10 +25,19 @@ process.env.AGENT_ROOM_WEBHOOKS = 'public';
 process.env.UPSTASH_REDIS_REST_URL = REDIS_BASE;
 process.env.UPSTASH_REDIS_REST_TOKEN = 'smoke-token';
 
+let seedHistory: (code: string, total: number) => void;
+
 /** Minimal Redis, covering exactly the commands this path issues. */
 function installFakeRedis(): void {
   const kv = new Map<string, string>();
   const lists = new Map<string, string[]>();
+  seedHistory = (code, total) => {
+    kv.set(`room-msg-count:${code}`, String(total));
+    lists.set(`room-msgs:${code}`, Array.from({ length: 1000 }, (_, i) => JSON.stringify({
+      id: total - 999 + i, type: 'msg', name: 'host', client: 'web', role: '',
+      color: '#000', initials: 'HO', time: i, text: `message ${total - 999 + i}`,
+    })));
+  };
   const realFetch = globalThis.fetch;
 
   const run = (cmd: (string | number)[]): unknown => {
@@ -60,6 +69,26 @@ function installFakeRedis(): void {
       case 'LTRIM': return 'OK';
       case 'EXPIRE': case 'EXPIREAT': case 'PEXPIRE': return 1;
       case 'EVAL': {
+        if (String(cmd[1]).includes('agent-room-message-snapshot')) {
+          const list = lists.get(String(cmd[3])) ?? [];
+          const total = Number(kv.get(String(cmd[4])) ?? list.length);
+          if (Number(cmd[6]) === 0) return [total, 0, []];
+          const since = Number(cmd[5]);
+          const trimmed = Math.max(0, total - list.length);
+          const start = Math.max(0, since - trimmed);
+          const rows = list.slice(start);
+          return [Math.max(since, trimmed + start + rows.length), since < trimmed ? 1 : 0, rows];
+        }
+        if (String(cmd[1]).includes('agent-room-message-append')) {
+          const key = String(cmd[3]), counter = String(cmd[4]);
+          const list = lists.get(key) ?? [];
+          const count = Number(kv.get(counter) ?? list.length) + 1;
+          list.push(String(cmd[5]));
+          lists.set(key, list.slice(-Number(cmd[6])));
+          kv.set(counter, String(count));
+          return count;
+        }
+
         // The CAS script: EVAL <src> 1 <key> <'absent'|'present'> <expected> <next> [ttl]
         const evalKey = String(cmd[3]);
         const mode = String(cmd[4]);
@@ -236,4 +265,43 @@ describe('hosted MCP endpoint', () => {
     }));
     expect(listed.webhooks ?? []).toHaveLength(0);
   }, 20_000);
+});
+
+
+describe('trimmed MCP history', () => {
+  it('keeps absolute cursors across join, send, catch-up and incremental reads', async () => {
+    const { createRemoteRoomClient } = await import('./_mcpRoomClient.js');
+    const { callTool } = await import('./_mcpTools.js');
+    const storage = createRemoteRoomClient();
+    const call = async (name: string, args: Record<string, unknown>) => {
+      const result = await callTool(storage, 'full', name, args);
+      return JSON.parse((result.content[0] as { text: string }).text);
+    };
+    const created = await call('room_create', { topic: 'cursor regression', name: 'host' });
+    seedHistory(created.code, 13557);
+    const joined = await call('room_join', { code: created.code, name: 'Reader' });
+    expect(joined.cursor).toBe(13558);
+    expect(joined.nextAction.arguments.since).toBe(joined.cursor);
+    const sent = await call('room_send', { code: created.code, name: joined.assignedName, text: 'new message' });
+    expect(sent.cursor).toBe(13559);
+    expect(sent.nextAction.arguments.since).toBe(13559);
+    const catchUp = await call('room_listen', { code: created.code, since: 1000, timeoutMs: 0 });
+    expect(catchUp.messages).toHaveLength(1000);
+    expect(catchUp.cursor).toBe(13559);
+    expect(catchUp.historyTruncated).toBe(true);
+    const held = await call('room_listen', { code: created.code, name: joined.assignedName,
+      since: 1000, timeoutMs: 1000, wakeOn: 'addressed' });
+    expect(held.cursor).toBe(13559);
+    expect(held.historyTruncated).toBe(true);
+    expect(held.messages).toHaveLength(1000);
+    const quiet = await call('room_listen', { code: created.code, since: catchUp.cursor, timeoutMs: 0 });
+    expect(quiet.messages).toEqual([]);
+    expect(quiet.cursor).toBe(13559);
+    await call('room_send', { code: created.code, name: joined.assignedName, text: 'one more' });
+    const incremental = await call('room_listen', { code: created.code, since: quiet.cursor, timeoutMs: 1000 });
+    expect(incremental.messages).toHaveLength(1);
+    expect(incremental.cursor).toBe(13560);
+    expect(incremental).not.toHaveProperty('digest');
+    expect(incremental.historyTruncated).toBe(false);
+  });
 });

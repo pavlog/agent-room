@@ -25,7 +25,7 @@ describe('appendMessage', () => {
     const fetchMock = vi.fn()
       // First call: getRoom (speak gate check)
       .mockResolvedValueOnce(mockResp({ result: JSON.stringify(APPROVED_ROOM) }))
-      // Second call: pipeline (RPUSH+INCR+LTRIM+EXPIREAT×2)
+      // Second call: atomic append script
       .mockResolvedValueOnce(mockResp([
         { result: 1 }, { result: 1 }, { result: 'OK' }, { result: 1 }, { result: 1 },
       ]));
@@ -35,16 +35,15 @@ describe('appendMessage', () => {
     await appendMessage(client, 'ABC-DEF-GHJ', MSG);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [, init] = fetchMock.mock.calls[1]!; // pipeline call
+    const [, init] = fetchMock.mock.calls[1]!; // append script
     const cmds = JSON.parse((init as any).body);
-    expect(cmds).toHaveLength(5);
-    expect(cmds[0][0]).toBe('RPUSH');
-    expect(cmds[0][1]).toBe('room-msgs:ABC-DEF-GHJ');
+    expect(cmds[0]).toBe('EVAL');
+    expect(cmds.slice(2, 5)).toEqual([2, 'room-msgs:ABC-DEF-GHJ', 'room-msg-count:ABC-DEF-GHJ']);
     // appendMessage enriches every message with reply-mode metadata. In an
     // 'open' room (legacy default) that's a fixed-shape stamp recording the
     // mode + role at send time. The original MSG fields must still all
     // be present, just with `metadata` added.
-    expect(JSON.parse(cmds[0][2])).toEqual({
+    expect(JSON.parse(cmds[5])).toEqual({
       ...MSG,
       metadata: {
         modeAtSend: 'open',
@@ -52,19 +51,8 @@ describe('appendMessage', () => {
         invocationType: 'normal_turn',
       },
     });
-    expect(cmds[1][0]).toBe('INCR');
-    expect(cmds[1][1]).toBe('room-msg-count:ABC-DEF-GHJ');
-    expect(cmds[2][0]).toBe('LTRIM');
-    expect(cmds[2][2]).toBe(-MAX_MESSAGES_PER_ROOM);
-    expect(cmds[2][3]).toBe(-1);
-    // EXPIREAT pins both keys to a fixed deadline (room.createdAt + TTL).
-    // APPROVED_ROOM.createdAt is 0, so the deadline is exactly ROOM_TTL_SECONDS.
-    expect(cmds[3][0]).toBe('EXPIREAT');
-    expect(cmds[3][1]).toBe('room-msgs:ABC-DEF-GHJ');
-    expect(cmds[3][2]).toBe(ROOM_TTL_SECONDS);
-    expect(cmds[4][0]).toBe('EXPIREAT');
-    expect(cmds[4][1]).toBe('room-msg-count:ABC-DEF-GHJ');
-    expect(cmds[4][2]).toBe(ROOM_TTL_SECONDS);
+    expect(cmds[6]).toBe(MAX_MESSAGES_PER_ROOM);
+    expect(cmds[7]).toBe(ROOM_TTL_SECONDS);
   });
 
   it('coerces a missing text field to "" before persisting', async () => {
@@ -81,7 +69,7 @@ describe('appendMessage', () => {
 
     const [, init] = fetchMock.mock.calls[1]!;
     const cmds = JSON.parse((init as any).body);
-    expect(JSON.parse(cmds[0][2]).text).toBe('');
+    expect(JSON.parse(cmds[5]).text).toBe('');
   });
 
   it('throws NotApprovedError when the sender is pending host approval', async () => {
@@ -161,8 +149,8 @@ describe('appendMessage — moderator-mode status updates', () => {
     // The RPUSHed message carries the same status-update metadata.
     const pipelineCall = fetchMock.mock.calls[3]!;
     const cmds = JSON.parse((pipelineCall[1] as any).body);
-    expect(cmds[0][0]).toBe('RPUSH');
-    expect(JSON.parse(cmds[0][2]).metadata).toEqual({
+    expect(cmds[0]).toBe('EVAL');
+    expect(JSON.parse(cmds[5]).metadata).toEqual({
       modeAtSend: 'moderator',
       roleAtSend: 'status',
       invocationType: 'status_update',

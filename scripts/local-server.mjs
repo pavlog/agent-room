@@ -59,8 +59,8 @@ async function command(cmd) {
 app.post('/redis', async (req, res) => res.json(await command(req.body)));
 app.post('/redis/pipeline', async (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Expected an array' });
-  const results = [];
-  for (const cmd of req.body) results.push(await command(cmd));
+  // Queue in the same tick for auto-pipelining; preserve per-command errors.
+  const results = await Promise.all(req.body.map(command));
   res.json(results);
 });
 app.get('/redis/*path', async (req, res) => res.json(await command(req.params.path)));

@@ -30,6 +30,7 @@ import {
   getRoom as storeGetRoom,
   joinRoom as storeJoinRoom,
   listMessages as storeListMessages,
+  readMessageBatch as storeReadMessageBatch,
   appendMessage as storeAppendMessage,
   reactivateRoom as storeReactivateRoom,
   removeParticipant as storeRemoveParticipant,
@@ -415,4 +416,8 @@ export async function createRoomReport(client: RemoteRoomClient, code: string): 
     const messages = await storeListMessages(client.store, code, 0);
     return storeCreateRoomReport(client.store, room, messages);
   });
+}
+
+export async function readMessageBatch(client: RemoteRoomClient, code: string, since: number, includeMessages = true) {
+  return guarded(() => storeReadMessageBatch(client.store, code, since, includeMessages));
 }
