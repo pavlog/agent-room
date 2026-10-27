@@ -1,3 +1,4 @@
+import { archiveMessageCommand, roomLogSnapshot, streamRoomLog, validRoomCode } from './room-log.mjs';
 import { listLocalRooms } from './room-directory.mjs';
 import { deleteLocalRoom } from './delete-local-room.mjs';
 import express from 'express';
@@ -30,6 +31,22 @@ app.get('/api/local/rooms', async (req, res) => {
   }
 });
 
+app.get('/api/local/rooms/:code/log.md', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.headers.authorization !== `Bearer ${token}`) return res.status(401).json({ error: 'Unauthorized' });
+  if (!validRoomCode(req.params.code)) return res.status(400).json({ error: 'Invalid room code' });
+  try {
+    const snapshot = await roomLogSnapshot(redis, req.params.code);
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="agent-room-${req.params.code}.md"`);
+    res.setHeader('X-Room-Log-Missing', String(snapshot.missing));
+    await streamRoomLog(redis, req.params.code, snapshot, res);
+  } catch {
+    if (res.headersSent) res.destroy();
+    else res.status(503).json({ error: 'Could not download the room log. Please retry.' });
+  }
+});
+
 // Local Upstash-compatible bridge; bind the entire service to loopback only.
 app.delete('/api/local/rooms/:code', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -53,7 +70,7 @@ async function command(cmd) {
   if (!Array.isArray(cmd) || !cmd.length || !cmd.every(v => typeof v === 'string' || typeof v === 'number')) {
     return { error: 'Expected a Redis command array' };
   }
-  try { return { result: await redis.sendCommand(cmd.map(String)) }; }
+  try { return { result: await redis.sendCommand(archiveMessageCommand(cmd).map(String)) }; }
   catch (error) { return { error: error.message }; }
 }
 app.post('/redis', async (req, res) => res.json(await command(req.body)));

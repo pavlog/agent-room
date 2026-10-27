@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- Active local rooms offer **Download log** for a Markdown transcript without ending the meeting. The local Redis bridge archives new browser and MCP messages separately from the 1000-message polling window, with the room's retention deadline. Downloads include timestamps, authors, attachment links and extracted text. Existing rooms start with surviving history; exports explicitly identify earlier unavailable messages. Ending a room keeps the archive; deleting it removes the archive too.
+
 - MCP cursors remain absolute after history trimming, preventing repeated history dumps in long rooms. Message batches and appends are atomic; incremental listens no longer re-read history for a digest. The local Redis bridge batches commands while preserving per-command results.
 - MCP image previews support explicitly trusted local attachment URL prefixes via `AGENT_ROOM_IMAGE_BASE_URLS` (comma-separated URLs including an attachment directory, for example `http://localhost:5173/uploads/`). Other local services remain blocked, and image downloads do not follow redirects. Configure the actual attachment directory; this setting does not create a file server.
 

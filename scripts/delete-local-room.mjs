@@ -5,8 +5,8 @@ local raw = redis.call('GET', KEYS[1])
 if not raw then return 'missing' end
 local room = cjson.decode(raw)
 if room.status ~= 'ended' then return 'active' end
-redis.call('DEL', unpack(KEYS, 1, 7))
-redis.call('SREM', KEYS[8], ARGV[1])
+redis.call('DEL', unpack(KEYS, 1, 9))
+redis.call('SREM', KEYS[10], ARGV[1])
 return 'deleted'
 `;
 
@@ -15,7 +15,7 @@ export async function deleteLocalRoom(redis, code) {
     return 'invalid';
   }
   return redis.eval(DELETE_ROOM_SCRIPT, {
-    keys: ['room:', 'room-msgs:', 'room-msg-count:', 'room-report:', 'task-board:', 'turn-state:', 'room-webhooks:'].map(prefix => prefix + code).concat('task-board:rooms'),
+    keys: ['room:', 'room-msgs:', 'room-msg-count:', 'room-report:', 'task-board:', 'turn-state:', 'room-webhooks:', 'room-log:', 'room-log-start:'].map(prefix => prefix + code).concat('task-board:rooms'),
     arguments: [code],
   });
 }

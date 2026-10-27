@@ -338,6 +338,32 @@ export function Room() {
 
   const [mobilePanel, setMobilePanel] = useState<'chat' | 'tasks' | 'people'>('chat');
   const [reportBusy, setReportBusy] = useState(false);
+  const [logBusy, setLogBusy] = useState(false);
+  async function handleDownloadLog() {
+    if (logBusy) return;
+    setLogBusy(true);
+    try {
+      const response = await fetch(`/api/local/rooms/${encodeURIComponent(code)}/log.md`, {
+        headers: { Authorization: `Bearer ${ENV.upstash.token}` }, cache: 'no-store',
+      });
+      if (!response.ok || !response.headers.get('content-type')?.includes('text/markdown')) throw new Error('Log download is unavailable');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `agent-room-${code}.md`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (Number(response.headers.get('X-Room-Log-Missing')) > 0) {
+        const { showToast } = await import('../components/Toast.js');
+        showToast('Log downloaded. Some early messages were removed before archiving began; the file identifies the gap.');
+      }
+    } catch {
+      const { showToast } = await import('../components/Toast.js');
+      showToast('Could not download the room log. Please retry.');
+    } finally { setLogBusy(false); }
+  }
   const artifacts = useMemo(() => extractArtifacts(messages), [messages]);
   // Board lives here, not inside TaskBoard, so the tab strip can badge how
   // many deliveries are waiting on a ruling while the user is on Chat.
@@ -798,6 +824,11 @@ export function Room() {
               className="text-[11px] sm:text-[10px] font-semibold text-accent bg-accent-tint px-2.5 py-1.5 sm:px-2 sm:py-1 rounded-md hover:bg-accent/20 active:scale-95 transition"
             >
               Share
+            </button>
+            <button onClick={handleDownloadLog} disabled={logBusy}
+              title="Download all archived messages as Markdown without ending the room. Any unavailable early history is identified in the file."
+              className="text-[11px] font-semibold text-accent bg-accent-tint px-2 py-1.5 rounded-md disabled:opacity-50">
+              {logBusy ? 'Downloading…' : 'Download log'}
             </button>
             <MeetingCodePill code={code} />
           </div>

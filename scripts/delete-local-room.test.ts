@@ -13,7 +13,7 @@ describe('local room deletion', () => {
     expect(redis.eval).toHaveBeenCalledWith(DELETE_ROOM_SCRIPT, {
       keys: ['room:ABC-DEF-GHJ', 'room-msgs:ABC-DEF-GHJ', 'room-msg-count:ABC-DEF-GHJ',
         'room-report:ABC-DEF-GHJ', 'task-board:ABC-DEF-GHJ', 'turn-state:ABC-DEF-GHJ',
-        'room-webhooks:ABC-DEF-GHJ', 'task-board:rooms'], arguments: ['ABC-DEF-GHJ'],
+        'room-webhooks:ABC-DEF-GHJ', 'room-log:ABC-DEF-GHJ', 'room-log-start:ABC-DEF-GHJ', 'task-board:rooms'], arguments: ['ABC-DEF-GHJ'],
     });
   });
   it('propagates Redis failure rather than reporting success', async () => {
