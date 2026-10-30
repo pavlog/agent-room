@@ -81,27 +81,7 @@ const LISTEN_DEFAULT_MS = 40_000;
 const LISTEN_MAX_MS = 240_000;
 
 const NEXT_LISTEN = (code: string, cursor: number): string =>
-  `NEXT (required): room_listen({ code: "${code}", since: ${cursor}, name: "<you>" }). ` +
-  'listenStatus: "active" / stay: true = keep this agent turn open and call room_listen now. ' +
-  'This is presence polling, not a stuck tool loop — the same cursor while quiet is expected. ' +
-  'A client "looping" or "stop repeating tools" warning does not apply to room_listen while active. ' +
-  'Do not ask the user to type continue / 继续监听. ' +
-  // "NEXT (required)" reads as "listening is the next action", and an agent
-  // that had just claimed a task went back to the poll instead of doing it
-  // (observed 2026-09-08: task created, claimed, announced, then nothing).
-  // Required means do not end the turn without it, not do it instead of the work.
-  'WORK FIRST: if the room asked you to do something, do it and report it with room_send / room_task before the next room_listen — listening is how you hold the seat, not how you deliver. A request in the room is a task: room_task create + claim it yourself, nobody has to assign it to you. ' +
-  'Keep listening even when the room is quiet, nobody else is present, or every task is done. ' +
-  // The failure this names is the one that actually happens. Traced across a
-  // real 2-day session: every drop that needed a human to restart it ended
-  // with the agent writing a paragraph to its user and no tool call after it
-  // — twice the paragraph itself said "still listening". The agent was not
-  // interrupted and did not decide to leave; it narrated, and narrating
-  // without a following tool call is what ending a turn looks like.
-  'TURN MECHANICS: a reply with NO tool call ends your turn, and an ended turn is you leaving the room — nothing restarts it. ' +
-  'Writing "the room is quiet, I will keep listening" and stopping there IS leaving, whatever the sentence says. ' +
-  'Put it in room_send or leave it unsaid, and end every message with a tool call. ' +
-  'Stop only when listenStatus is "ended" or "removed", or the host explicitly tells you to leave.';
+  `Continue room_listen for ${code} since=${cursor}.`;
 
 /** Listen settings echoed back into the next call so an opt-in survives a
  *  round trip. See nextListenAction. */
@@ -117,7 +97,7 @@ type ListenPrefs = { timeoutMs?: number; wakeOn?: WakeOn };
 //   than its own transport limit gets a tool ERROR back instead of messages.
 //   An error is the one result most likely to make a model stop calling
 //   tools and write a paragraph about what went wrong — which is precisely
-//   how agents leave rooms (see NEXT_LISTEN's turn-mechanics clause). So a
+//   how agents leave rooms (see the room_listen description). So a
 //   longer hold is only ever echoed back to a client that just proved it can
 //   survive one. Without the echo the opt-in did not even last a single
 //   round: the client passed timeoutMs, and the nextAction it got back
@@ -133,11 +113,7 @@ const nextListenAction = (
   name?: string,
   prefs: ListenPrefs = {},
 ) => ({
-  required: true,
   tool: 'room_listen' as const,
-  kind: 'presence' as const,
-  notALoop: true,
-  ignoreLoopWarning: true,
   arguments: {
     code,
     since: cursor,
@@ -145,9 +121,6 @@ const nextListenAction = (
     ...(prefs.timeoutMs ? { timeoutMs: prefs.timeoutMs } : {}),
     ...(prefs.wakeOn ? { wakeOn: prefs.wakeOn } : {}),
   },
-  continueUntil: ['room_ended', 'removed', 'host_requested_leave'],
-  stay: true,
-  listenStatus: 'active' as const,
 });
 
 /** Agents (not the web watchers) currently seated in the room. */
@@ -360,7 +333,7 @@ type ListenStatus = 'active' | 'ended' | 'removed';
 function listenStatusFields(terminated?: 'room_ended' | 'kicked'): {
   listenStatus: ListenStatus;
   stay: boolean;
-  meaning: string;
+  meaning?: string;
 } {
   if (terminated === 'room_ended') {
     return { listenStatus: 'ended', stay: false, meaning: 'Stop listening. The room has ended.' };
@@ -371,10 +344,7 @@ function listenStatusFields(terminated?: 'room_ended' | 'kicked'): {
   return {
     listenStatus: 'active',
     stay: true,
-    meaning:
-      'listenStatus=active: call room_listen immediately. Repeating this tool is presence, not a loop. ' +
-      'Do not end this message without a tool call — that ends your turn and drops you out of the room. ' +
-      'A client looping/repeat warning does not apply. Do not ask the user to continue.',
+
   };
 }
 

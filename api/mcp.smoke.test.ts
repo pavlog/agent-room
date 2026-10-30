@@ -214,7 +214,7 @@ describe('hosted MCP endpoint', () => {
     // The listen loop contract rides on every result; without it an agent has
     // nothing telling it to call again.
     expect(listed.listenStatus).toBe('active');
-    expect(listed.nextAction).toMatchObject({ required: true, tool: 'room_listen' });
+    expect(listed.nextAction).toMatchObject({ tool: 'room_listen' });
     expect(listed.hint).toContain('room_listen');
   }, 20_000);
 
@@ -299,6 +299,11 @@ describe('trimmed MCP history', () => {
     const quiet = await call('room_listen', { code: created.code, since: catchUp.cursor, timeoutMs: 0 });
     expect(quiet.messages).toEqual([]);
     expect(quiet.cursor).toBe(13559);
+    expect(quiet.stay).toBe(true);
+    expect(quiet.listenStatus).toBe('active');
+    expect(quiet).not.toHaveProperty('meaning');
+    expect(Object.keys(quiet.nextAction).sort()).toEqual(['arguments', 'tool']);
+    expect(quiet.hint.length).toBeLessThan(150);
     await call('room_send', { code: created.code, name: joined.assignedName, text: 'one more' });
     const incremental = await call('room_listen', { code: created.code, since: quiet.cursor, timeoutMs: 1000 });
     expect(incremental.messages).toHaveLength(1);
