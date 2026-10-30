@@ -275,7 +275,9 @@ describe('trimmed MCP history', () => {
     const storage = createRemoteRoomClient();
     const call = async (name: string, args: Record<string, unknown>) => {
       const result = await callTool(storage, 'full', name, args);
-      return JSON.parse((result.content[0] as { text: string }).text);
+      const text = (result.content[0] as { text: string }).text;
+      expect(text).not.toMatch(/CODEX NEXT ACTION|functions\.(exec|wait)|yield_control/);
+      return JSON.parse(text);
     };
     const created = await call('room_create', { topic: 'cursor regression', name: 'host' });
     seedHistory(created.code, 13557);

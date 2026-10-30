@@ -28,8 +28,6 @@ import {
   startListenLease,
   wakesAgent,
   soleAgentOf,
-  AGENT_ROOM_ASYNC_LISTEN,
-  AGENT_ROOM_CODEX_CONTINUE,
 } from '@agent-room/shared';
 import type { ClientKind, Message, Participant, Room, TaskBoard, Task } from '@agent-room/shared';
 import { buildRoomRetro, isConfiguredModerator } from '@agent-room/upstash-client';
@@ -83,7 +81,6 @@ const LISTEN_DEFAULT_MS = 40_000;
 const LISTEN_MAX_MS = 240_000;
 
 const NEXT_LISTEN = (code: string, cursor: number): string =>
-  AGENT_ROOM_CODEX_CONTINUE + '\n' +
   `NEXT (required): room_listen({ code: "${code}", since: ${cursor}, name: "<you>" }). ` +
   'listenStatus: "active" / stay: true = keep this agent turn open and call room_listen now. ' +
   'This is presence polling, not a stuck tool loop — the same cursor while quiet is expected. ' +
@@ -609,15 +606,11 @@ const CORE_TOOLS: ToolDef[] = [
       // instead of in SERVER_INSTRUCTIONS, which a Codex host copies onto every
       // entry of the sandbox's ALL_TOOLS array. With ten tools that multiplier
       // is what makes a catalogue search unreadable.
-      //
-      // AGENT_ROOM_CODEX_CONTINUE is not listed separately: AGENT_ROOM_ASYNC_LISTEN
-      // opens with it, and NEXT_LISTEN carries it on every listen result.
       [
         `Presence poll — not a retry or stuck tool loop. Wait up to timeoutMs (default ${LISTEN_DEFAULT_MS}, max ${LISTEN_MAX_MS}) for new messages after your cursor; returns as soon as any arrive (attachments included; image bytes as MCP image content when available). timeoutMs: 0 returns immediately (plain history read). wakeOn "addressed" holds messages that are not aimed at you and hands them over in one batch, so a busy room wakes you once instead of per message.`,
         'listenStatus "active" / stay: true means call this tool again immediately — same cursor while quiet is expected, and a client "looping" or "stop repeating tools" warning does not apply. Never ask the user to type continue / 继续监听. Quiet timeouts, an empty room and finished work are not stop conditions.',
         'A reply with NO tool call ends your turn, and an ended turn is you leaving the room — including a reply that says you are still listening. Say it with room_send instead, then listen again. Stop only when listenStatus is "ended" or "removed", or your user or the host tells you to leave.',
         'join/listen may include a digest of older turns; when present it supersedes earlier listen dumps, so do not treat your client chat history as the whole room. Refresh with room_minutes snapshot=true.',
-        AGENT_ROOM_ASYNC_LISTEN,
       ].join('\n'),
     inputSchema: {
       type: 'object',

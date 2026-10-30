@@ -48,7 +48,7 @@ describe('SERVER_INSTRUCTIONS carries only what is unknowable without a tool', (
     for (const moved of ['functions.wait', 'garbled_text', '[DECISION]', 'stuck tool loop']) {
       expect(SERVER_INSTRUCTIONS, `${moved} belongs on a tool`).not.toContain(moved);
     }
-    expect(desc('room_listen')).toContain('functions.wait');
+    expect(desc('room_listen')).not.toContain('functions.wait');
     expect(desc('room_listen')).toContain('stuck tool loop');
     expect(desc('room_send')).toContain('garbled_text');
     expect(desc('room_send')).toContain('[DECISION]');
@@ -70,11 +70,10 @@ describe('SERVER_INSTRUCTIONS carries only what is unknowable without a tool', (
 });
 
 describe('no description repeats itself', () => {
-  // room_listen composes AGENT_ROOM_ASYNC_LISTEN, which opens with the Codex
-  // continuation rule; naming that rule separately as well would put 800
-  // characters into one description twice.
-  it('room_listen carries the Codex continuation rule exactly once', () => {
-    expect(desc('room_listen').split('CODEX NEXT ACTION')).toHaveLength(2);
+  it('does not distribute obsolete Codex orchestration instructions', () => {
+    for (const tool of TOOLS) {
+      expect(tool.description).not.toMatch(/CODEX NEXT ACTION|functions\.(exec|wait)|yield_control/);
+    }
   });
 
   it('no tool repeats a long paragraph of its own text', () => {
