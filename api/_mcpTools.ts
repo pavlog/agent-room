@@ -44,6 +44,7 @@ import {
   reactivateRoom,
   removeParticipant,
   setListenUntil,
+  touchPresence,
   sweepRoom,
   RemoteRoomApiError,
   type RemoteRoomClient,
@@ -1104,6 +1105,7 @@ async function dispatch(
         reason?: string;
         metadata?: { roleAtSend?: string; turnId?: number; extendsTurn?: boolean };
       };
+      await touchPresence(client, a.code, senderName);
       if (result && result.appended === false && result.reason === 'no_addition') {
         return ok({
           sent: true,
@@ -1150,6 +1152,7 @@ async function dispatch(
             hint: `Transient listMessages failure — retry. ${NEXT_LISTEN(a.code, since)}`,
           });
         }
+        if (selfName) await touchPresence(client, a.code, selfName);
         const cursor = listed.cursor;
         const messages = listed.messages.map(slimMessage);
         return ok({

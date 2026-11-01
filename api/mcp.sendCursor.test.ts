@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const { append, batch } = vi.hoisted(() => ({ append: vi.fn(), batch: vi.fn() }));
+const { append, batch, touch } = vi.hoisted(() => ({ append: vi.fn(), batch: vi.fn(), touch: vi.fn() }));
 vi.mock('./_mcpRoomClient.js', async original => ({
   ...await original<typeof import('./_mcpRoomClient.js')>(),
   getRoom: async () => ({ code:'ABC-DEF-GHJ',createdBy:'Host',status:'active',participants:[
     {name:'Agent',client:'cc',role:'Reviewer',canSpeak:true,color:'#000',initials:'AG'},
   ] }),
   appendMessage: append,
+  touchPresence: touch,
   readMessageBatch: batch,
 }));
 import { callTool } from './_mcpTools.js';
@@ -15,7 +16,7 @@ const send = async (extra: Record<string, unknown> = {}) => {
   });
   return JSON.parse((result.content[0] as {text:string}).text);
 };
-beforeEach(() => { append.mockReset(); batch.mockReset(); });
+beforeEach(() => { append.mockReset(); batch.mockReset(); touch.mockReset(); });
 describe('send never advances read progress', () => {
   it.each([
     {appended:true},
@@ -27,6 +28,7 @@ describe('send never advances read progress', () => {
     expect(result.cursor).toBe(42);
     expect(result.nextAction.arguments).toEqual({code:'ABC-DEF-GHJ',since:42,name:'Agent'});
     expect(batch).not.toHaveBeenCalled();
+    expect(touch).toHaveBeenCalledWith(expect.anything(),'ABC-DEF-GHJ','Agent');
   });
   it.each([undefined, 0])('does not invent a cursor when since is %s', async since => {
     append.mockResolvedValue({appended:false,reason:'no_addition'});
@@ -39,5 +41,6 @@ describe('send never advances read progress', () => {
   it.each([-1,1.5,'42',null,Number.MAX_SAFE_INTEGER+1])('rejects invalid since %s before sending', async since => {
     expect((await send({since})).sent).toBe(false);
     expect(append).not.toHaveBeenCalled();
+    expect(touch).not.toHaveBeenCalled();
   });
 });

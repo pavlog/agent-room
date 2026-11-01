@@ -32,6 +32,7 @@ const room = {
 };
 
 const listMessages = vi.fn();
+const touch = vi.fn();
 
 vi.mock('./_mcpRoomClient.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./_mcpRoomClient.js')>()),
@@ -39,6 +40,7 @@ vi.mock('./_mcpRoomClient.js', async (importOriginal) => ({
   getRoom: async () => room,
   sweepRoom: async () => room,
   setListenUntil: async () => {},
+  touchPresence: (...args: unknown[]) => touch(...args),
   listMessages: (...a: unknown[]) => listMessages(...a),
   readMessageBatch: async (...a: unknown[]) => {
     const messages = await listMessages(...a);
@@ -59,7 +61,7 @@ const listen = async (over: Record<string, unknown> = {}) => {
 const claude = { name: 'Claude', role: '', color: '#003', initials: 'CL', client: 'cc' as const, joinedAt: 3, lastSeenAt: 3, canSpeak: true };
 
 describe('addressedYou', () => {
-  beforeEach(() => { listMessages.mockReset(); listMessages.mockResolvedValue([]); });
+  beforeEach(() => { touch.mockReset(); listMessages.mockReset(); listMessages.mockResolvedValue([]); });
 
   it('is set when the text @-mentions the agent', async () => {
     listMessages.mockResolvedValue([{ ...base, type: 'msg', name: 'host', text: '@Codex please review' }]);
@@ -126,4 +128,13 @@ describe('addressedYou', () => {
     expect(res.addressedYou).toBeUndefined();
     expect(res.messages).toEqual([]);
   });
+});
+
+it('quick named reads update presence, anonymous reads do not', async () => {
+  touch.mockClear();
+  await listen({timeoutMs:0});
+  expect(touch).toHaveBeenCalledWith(expect.anything(),room.code,'Codex');
+  touch.mockClear();
+  await listen({timeoutMs:0,name:undefined});
+  expect(touch).not.toHaveBeenCalled();
 });

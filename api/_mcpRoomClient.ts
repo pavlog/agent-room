@@ -34,8 +34,6 @@ import {
   appendMessage as storeAppendMessage,
   reactivateRoom as storeReactivateRoom,
   removeParticipant as storeRemoveParticipant,
-  setListenUntil as storeSetListenUntil,
-  updatePresence,
   verifyHostKey,
   HostNameTakenError,
   MutedError,
@@ -344,10 +342,7 @@ export async function setListenUntil(
   name: string,
   until: number,
 ): Promise<void> {
-  await guarded(async () => {
-    await storeSetListenUntil(client.store, code, name, until);
-    await updatePresence(client.store, code, name, Date.now());
-  });
+  await touchPresence(client, code, name, until);
 }
 
 export async function removeParticipant(
@@ -420,4 +415,30 @@ export async function createRoomReport(client: RemoteRoomClient, code: string): 
 
 export async function readMessageBatch(client: RemoteRoomClient, code: string, since: number, includeMessages = true) {
   return guarded(() => storeReadMessageBatch(client.store, code, since, includeMessages));
+}
+
+/** Activity is best-effort and never creates seats or clears an active listen lease. */
+export async function touchPresence(client: RemoteRoomClient, code: string, name: string, until?: number): Promise<void> {
+  try {
+    const at = Date.now();
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const raw = await client.store.command<string | null>(['GET', `room:${code}`]);
+      if (!raw) return;
+      const room = JSON.parse(raw) as Room;
+      const participant = room.participants.find(p => p.name === name && p.client === 'cc');
+      if (!participant) return;
+      participant.lastSeenAt = Math.max(participant.lastSeenAt || 0, at);
+      if (until !== undefined) participant.listenUntil = until;
+      room.version = (room.version || 0) + 1;
+      // Compare the full original value: never overwrite a concurrent join,
+      // and keep JSON arrays intact instead of re-encoding them through Lua.
+      const changed = await client.store.command<number>(['EVAL', `
+-- agent-room-touch-presence
+if redis.call('GET', KEYS[1]) ~= ARGV[2] then return 0 end
+redis.call('SET', KEYS[1], ARGV[3], 'KEEPTTL')
+return 1
+`, 1, `room:${code}`, 'present', raw, JSON.stringify(room)]);
+      if (changed === 1) return;
+    }
+  } catch { /* A heartbeat failure must not turn a delivered message into a send failure. */ }
 }

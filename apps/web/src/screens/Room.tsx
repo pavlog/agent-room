@@ -1434,17 +1434,12 @@ function participantPresence(p: Participant, now: number) {
     };
   }
 
-  // Past 10 minutes silent → possibly disconnected. Most common cause:
-  // a CLI agent (Cursor / Claude Code / Codex) was terminated by the user
-  // without calling room_leave, so the participant row stays in the room
-  // forever. The "Disconnected" label is a hint to the host that this
-  // participant is unlikely to come back, paired with the always-visible
-  // kick button so they can clean up in one click.
+  // Silence is not proof of a disconnected transport: agents may be working.
   if (now - p.lastSeenAt > PRESENCE_DISCONNECTED_MS) {
     return {
       kind: 'disconnected' as const,
-      label: 'Disconnected',
-      detail: p.client === 'cc' ? 'host can remove' : '',
+      label: 'No recent activity',
+      detail: 'last seen over 10 min ago',
       className: 'text-ink-faint',
       dotClassName: 'bg-slate-400',
     };
