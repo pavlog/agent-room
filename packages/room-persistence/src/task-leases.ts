@@ -257,9 +257,14 @@ export class TaskLeaseServer {
   }
 
   submit(code: string, taskId: string, actor: LeaseActor, evidence: EvidenceInput) {
-    if (!evidence.fileListing.trim() || !evidence.fileExcerpt.trim() ||
-      !evidence.runOutput.trim() || !Number.isInteger(evidence.exitCode)) {
-      throw new TaskLeaseError('task_evidence_invalid', 'Task evidence must contain all proof fields and an exit code.');
+    // Same rule as upstash-client's submitTask: the artifact half is always
+    // required; the check half is a run (output + exit code) OR `checks`.
+    const hasOutput = !!evidence.runOutput?.trim();
+    const hasCode = Number.isInteger(evidence.exitCode);
+    const ran = hasOutput && hasCode;
+    const checked = !!evidence.checks?.trim();
+    if (!evidence.fileListing.trim() || !evidence.fileExcerpt.trim() || hasOutput !== hasCode || (!ran && !checked)) {
+      throw new TaskLeaseError('task_evidence_invalid', 'Task evidence must show the artifact (fileListing + fileExcerpt) and how it was checked (runOutput + exitCode, or checks).');
     }
     return this.mutate(code, taskId, actor, (task, at) => {
       const lease = task.lease;

@@ -229,3 +229,24 @@ describe('task lease production entry', () => {
     expect(store.receipts.map(item => item.leaseEvent)).toEqual(['granted', 'expired']);
   });
 });
+
+describe('written evidence through task leases', () => {
+  it('accepts checks without inventing command output', async () => {
+    const store = new LeaseMemoryPersistence();
+    const leases = service(store, { now: 100 });
+    await leases.claim(room().code, 'T-01', alice);
+    await leases.submit(room().code, 'T-01', alice, {
+      fileListing: 'report.md', fileExcerpt: '# Report', checks: 'Verified required sections against the brief.',
+    });
+    expect(store.currentBoard.tasks[0]?.state).toBe('awaiting_review');
+    expect(store.currentBoard.tasks[0]?.evidence?.exitCode).toBeUndefined();
+  });
+  it('rejects incomplete run evidence even alongside written checks', () => {
+    const store = new LeaseMemoryPersistence();
+    const leases = service(store, { now: 100 });
+    expect(() => leases.submit(room().code, 'T-01', alice, {
+      fileListing: 'report.md', fileExcerpt: '# Report', checks: 'Checked', runOutput: 'passed',
+    })).toThrow('Task evidence');
+    expect(store.boardWrites).toBe(0);
+  });
+});

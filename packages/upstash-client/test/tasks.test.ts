@@ -85,6 +85,59 @@ describe('task board evidence gate', () => {
     expect(task.verifier).toBe('GPT');
   });
 
+  it('accepts written checks in place of a run, for work that has none', async () => {
+    installFakeRedis();
+    const client = createClient(ENV);
+    const { task } = await createTask(client, CODE, { title: 'Write the summary', createdBy: 'Claude' });
+
+    const { task: submitted } = await submitTask(client, CODE, task.id, OWNER, {
+      fileListing: 'summary.docx',
+      fileExcerpt: '# Purpose — this project ...',
+      checks: 'opens in Word: yes. covers purpose/structure/findings/next steps: yes, sections 1-4.',
+    });
+
+    expect(submitted.state).toBe('awaiting_review');
+    expect(submitted.evidence?.checks).toContain('opens in Word');
+    // Absent, not empty: a task with no run should not carry a fabricated zero.
+    expect(submitted.evidence?.runOutput).toBeUndefined();
+    expect(submitted.evidence?.exitCode).toBeUndefined();
+  });
+
+  it('still requires the artifact half whatever the check half looks like', async () => {
+    installFakeRedis();
+    const client = createClient(ENV);
+    const { task } = await createTask(client, CODE, { title: 'X', createdBy: 'Claude' });
+
+    await expect(
+      submitTask(client, CODE, task.id, OWNER, { fileListing: '', fileExcerpt: 'x', checks: 'all criteria met' }),
+    ).rejects.toBeInstanceOf(EvidenceIncompleteError);
+  });
+
+  it('rejects a submission with neither a run nor checks', async () => {
+    installFakeRedis();
+    const client = createClient(ENV);
+    const { task } = await createTask(client, CODE, { title: 'X', createdBy: 'Claude' });
+
+    await expect(
+      submitTask(client, CODE, task.id, OWNER, { fileListing: 'a.txt', fileExcerpt: 'hello' }),
+    ).rejects.toBeInstanceOf(EvidenceIncompleteError);
+  });
+
+  // Output with no exit code, or an exit code with no output, is a claim about
+  // a run rather than a record of one.
+  it('rejects half a run even when the other half would have passed', async () => {
+    installFakeRedis();
+    const client = createClient(ENV);
+    const { task } = await createTask(client, CODE, { title: 'X', createdBy: 'Claude' });
+
+    await expect(
+      submitTask(client, CODE, task.id, OWNER, { fileListing: 'a.txt', fileExcerpt: 'x', runOutput: '1 passed' }),
+    ).rejects.toBeInstanceOf(EvidenceIncompleteError);
+    await expect(
+      submitTask(client, CODE, task.id, OWNER, { fileListing: 'a.txt', fileExcerpt: 'x', exitCode: 0 }),
+    ).rejects.toBeInstanceOf(EvidenceIncompleteError);
+  });
+
   it('rejects a submission missing any evidence part and leaves state unchanged', async () => {
     installFakeRedis();
     const client = createClient(ENV);

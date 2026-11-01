@@ -9,7 +9,7 @@ import {
 } from '@agent-room/shared';
 import type { UpstashClient } from './client.js';
 import { ConcurrencyError } from './errors.js';
-import { casRoom } from './rooms.js';
+import { casRoom, isParticipantStale } from './rooms.js';
 
 // Turn state for a room. Lives in its own Redis key (`turn-state:{code}`) so
 // the room JSON stays small and the high-write turn cursor (currentName /
@@ -239,12 +239,20 @@ export function timeoutForRole(room: Room, role: RoleInTurn): number {
 // Sequential mode: pick the agent who answers first. Honors the host's
 // explicit choice in modeConfig; otherwise falls back to "first cc-client
 // agent in join order". Returns undefined if no cc agents are present.
+function sequentialRoster(room: Room): Participant[] {
+  const eligible = room.participants
+    .filter(p => p.client === 'cc' && p.canSpeak !== false && p.name !== room.createdBy)
+    .sort((a, b) => a.joinedAt - b.joinedAt);
+  const now = Date.now();
+  const live = eligible.filter(p => !isParticipantStale(p, now));
+  // Keep a recoverable turn when every seat appears disconnected.
+  return live.length ? live : eligible;
+}
+
 export function pickLeadForSequential(room: Room): { name: string; client: ClientKind } | undefined {
   const wantName = room.modeConfig?.leadAgentName;
   const wantClient = room.modeConfig?.leadAgentClient;
-  const ccAgents = room.participants
-    .filter(p => p.client === 'cc' && p.canSpeak !== false && p.name !== room.createdBy)
-    .sort((a, b) => a.joinedAt - b.joinedAt);
+  const ccAgents = sequentialRoster(room);
   if (wantName && wantClient) {
     const explicit = ccAgents.find(p => p.name === wantName && p.client === wantClient);
     if (explicit) return { name: explicit.name, client: explicit.client };
@@ -262,10 +270,7 @@ export function buildSupplementQueue(
   room: Room,
   lead: { name: string; client: ClientKind } | undefined,
 ): TurnQueueEntry[] {
-  return room.participants
-    .filter(p => p.client === 'cc')
-    .filter(p => p.canSpeak !== false)
-    .filter(p => p.name !== room.createdBy)
+  return sequentialRoster(room)
     .filter(p => !(lead && p.name === lead.name && p.client === lead.client))
     .sort((a, b) => a.joinedAt - b.joinedAt)
     .map(p => ({ name: p.name, client: p.client, role: 'supplement' as RoleInTurn }));
@@ -354,13 +359,8 @@ export function newSequentialTurn(
 // `spoken` is the already-extended spoken log; its entries are tagged with
 // the round they belong to, so we can tell whether the finished round had
 // a reply. `now` anchors the next speaker's deadline.
-function advanceRoundOrEnd(
-  state: TurnState,
-  room: Room,
-  spoken: TurnSpokenEntry[],
-  now: number,
-): TurnState {
-  const ended: TurnState = {
+function endedTurn(state: TurnState, spoken: TurnSpokenEntry[]): TurnState {
+  return {
     ...state,
     currentName: undefined,
     currentClient: undefined,
@@ -371,6 +371,15 @@ function advanceRoundOrEnd(
     queue: [],
     spoken,
   };
+}
+
+function advanceRoundOrEnd(
+  state: TurnState,
+  room: Room,
+  spoken: TurnSpokenEntry[],
+  now: number,
+): TurnState {
+  const ended = endedTurn(state, spoken);
   if (state.mode !== 'sequential') return ended;
   const round = state.round ?? 1;
   const roundReplied = spoken.some(e => e.round === round && e.status === 'replied');
@@ -411,6 +420,7 @@ export function advanceTurn(
   status: TurnSpokenStatus,
   room: Room,
   now: number = Date.now(),
+  opts?: { result?: boolean },
 ): TurnState {
   if (!state.currentName || !state.currentClient || !state.currentRole) {
     return state;
@@ -423,6 +433,17 @@ export function advanceTurn(
     at: now,
     round: state.round,
   };
+  // A lead cannot close its opening answer before the first peer pass.
+  // Later rounds and solo rooms may still finish early.
+  if (
+    state.mode === 'sequential'
+    && opts?.result
+    && status === 'replied'
+    && (state.currentRole === 'lead' || state.currentRole === 'wrap')
+    && !((state.round ?? 1) === 1 && state.queue.length > 0)
+  ) {
+    return endedTurn(state, [...state.spoken, finished]);
+  }
   const nextQueue = state.queue.slice();
   const next = nextQueue.shift();
   if (!next) {

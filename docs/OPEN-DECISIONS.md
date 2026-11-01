@@ -108,3 +108,18 @@ room open.
 ## Local image attachment directories
 
 MCP image hydration now supports explicit trusted URL directory prefixes through `AGENT_ROOM_IMAGE_BASE_URLS`. The actual directory served by external local preview services has not been specified. Configure a known attachment directory before enabling that service; do not trust every path or port on localhost. This does not affect cursor and digest fixes.
+
+## Upstream task inbox compatibility
+
+The task inbox import preserves the fork's task lifecycle. Rejected/cancelled/done
+tasks are not execute-now work, and blocked work is not automatically resumed.
+Decide separately whether blocked tasks should have a distinct, non-executing
+reminder and whether a rejection should create a revision task or require host
+reopening. Upstream task ownership, solo self-review, and retention changes were
+not bundled into the evidence-format import. Deliver mode is deferred.
+
+The broader validation sweep also reproduces three existing failures on the
+pre-import baseline: two Redis persistence tests still assume 24-hour retention,
+and the migration byte-equivalence test is sensitive to Windows CRLF. These are
+not caused by this import. Postgres/live Redis integration suites require isolated
+services and were not run as part of this port.

@@ -6,8 +6,8 @@
 // described in @agent-room/shared's Task types. The whole point is that the
 // rules below cannot be talked around by an agent — they are checked here, not
 // in a prompt:
-//   - submitTask REQUIRES three non-empty evidence parts; missing any part
-//     throws EvidenceIncompleteError and the task does not move.
+//   - submitTask requires artifact evidence plus a run or written checks;
+//     incomplete evidence does not move the task.
 //   - A producer can only reach 'awaiting_review'. There is no code path that
 //     lets the owner set 'done'.
 //   - verifyTask is the ONLY way to reach 'done' / 'rejected', and it rejects
@@ -26,7 +26,11 @@ export class TaskExistsError extends UpstashError {
 }
 export class EvidenceIncompleteError extends UpstashError {
   constructor(missing: string) {
-    super(`Evidence incomplete: ${missing}. A submission must include a non-empty fileListing, fileExcerpt, and runOutput (with an exitCode).`);
+    super(
+      `Evidence incomplete: ${missing}. A submission needs fileListing and fileExcerpt, `
+      + 'plus either runOutput with a numeric exitCode, or checks — each done-when '
+      + 'criterion and how you verified it.',
+    );
     this.name = 'EvidenceIncompleteError';
   }
 }
@@ -491,9 +495,18 @@ export async function closeTaskByHost(
 function assertEvidenceComplete(e: Partial<TaskEvidence>): void {
   if (!e.fileListing || !e.fileListing.trim()) throw new EvidenceIncompleteError('fileListing is empty');
   if (!e.fileExcerpt || !e.fileExcerpt.trim()) throw new EvidenceIncompleteError('fileExcerpt is empty');
-  if (!e.runOutput || !e.runOutput.trim()) throw new EvidenceIncompleteError('runOutput is empty');
-  if (typeof e.exitCode !== 'number' || !Number.isFinite(e.exitCode)) {
-    throw new EvidenceIncompleteError('exitCode is missing or not a number');
+  const hasOutput = Boolean(e.runOutput && e.runOutput.trim());
+  const hasCode = typeof e.exitCode === 'number' && Number.isFinite(e.exitCode);
+  if (hasOutput !== hasCode) {
+    throw new EvidenceIncompleteError(
+      hasOutput ? 'runOutput was given without a numeric exitCode' : 'exitCode was given without runOutput',
+    );
+  }
+  if (!hasOutput && !(e.checks && e.checks.trim())) {
+    throw new EvidenceIncompleteError(
+      'no proof of checking: give runOutput + exitCode for work with a run, or checks '
+      + '(each done-when criterion and how you verified it) for work without one',
+    );
   }
 }
 
@@ -517,8 +530,9 @@ export async function submitTask(
     const fullEvidence: TaskEvidence = {
       fileListing: evidence.fileListing,
       fileExcerpt: evidence.fileExcerpt,
-      runOutput: evidence.runOutput,
-      exitCode: evidence.exitCode,
+      ...(evidence.runOutput ? { runOutput: evidence.runOutput } : {}),
+      ...(typeof evidence.exitCode === 'number' ? { exitCode: evidence.exitCode } : {}),
+      ...(evidence.checks ? { checks: evidence.checks } : {}),
       submittedBy: submitter.name,
       submittedClient: submitter.client,
       at: now,

@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- Adapted upstream [#62](https://github.com/agent-room-alkl/agent-room/pull/62) and [#66](https://github.com/agent-room-alkl/agent-room/pull/66): agents receive their pending work and reviews after join/send/read, task evidence can use written criterion checks instead of a command run, and sequential listeners receive explicit speaking turns. Preserves local MCP invitations, absolute read cursors, compact quiet responses, host task closure, and presence updates. Blocked and terminal tasks do not trigger an execute-now directive. Deliver mode is not included.
+
 - HTTP MCP sends and named non-blocking reads refresh agent presence. Presence updates atomically preserve room state and active listen leases; silent agents are labeled **No recent activity** rather than asserting a disconnected transport.
 
 - HTTP MCP `room_send` no longer advances the read cursor, so a message arriving between an agent's read and reply is not skipped by the suggested next listen. Optional `since` echoes the last processed read cursor unchanged. Calls without `since` still send normally but return neither a cursor nor a numeric next action; clients must retain their last join/listen cursor.
