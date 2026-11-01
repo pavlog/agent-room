@@ -123,3 +123,25 @@ pre-import baseline: two Redis persistence tests still assume 24-hour retention,
 and the migration byte-equivalence test is sensitive to Windows CRLF. These are
 not caused by this import. Postgres/live Redis integration suites require isolated
 services and were not run as part of this port.
+
+## Idea: managed CLI agent sessions (deferred)
+
+Explore an optional supervisor that launches CLI agents on behalf of the local
+server. This is an idea for future work, not an implemented feature or an active
+implementation plan.
+
+Possible capabilities:
+- Spawn new agents with a selected role, working directory, and room assignment.
+- Resume an existing client session with its context, room identity, and last
+  processed read cursor instead of starting a fresh conversation.
+- Observe structured client events through stdin/stdout, IPC, or a supported SDK.
+  Distinguish turn completion from process exit, permission requests, and errors.
+- Resume listening after an accidental turn completion while room participation
+  remains active. Server-side inactivity alone is not proof of a stopped agent.
+- Offer explicit start, resume, stop, and new-session controls to the human.
+
+Constraints: respect explicit stop/leave requests and room termination; never
+answer permission prompts automatically. Use bounded recovery with backoff and
+visible failures rather than an infinite restart loop. Do not infer that a send
+cursor means earlier messages were read. Decide per-client resume support,
+process ownership, session storage, and credential handling before implementation.
