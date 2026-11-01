@@ -284,9 +284,9 @@ describe('trimmed MCP history', () => {
     const joined = await call('room_join', { code: created.code, name: 'Reader' });
     expect(joined.cursor).toBe(13558);
     expect(joined.nextAction.arguments.since).toBe(joined.cursor);
-    const sent = await call('room_send', { code: created.code, name: joined.assignedName, text: 'new message' });
-    expect(sent.cursor).toBe(13559);
-    expect(sent.nextAction.arguments.since).toBe(13559);
+    const sent = await call('room_send', { code: created.code, name: joined.assignedName, text: 'new message', since: joined.cursor });
+    expect(sent.cursor).toBe(joined.cursor);
+    expect(sent.nextAction.arguments.since).toBe(joined.cursor);
     const catchUp = await call('room_listen', { code: created.code, since: 1000, timeoutMs: 0 });
     expect(catchUp.messages).toHaveLength(1000);
     expect(catchUp.cursor).toBe(13559);
@@ -310,5 +310,20 @@ describe('trimmed MCP history', () => {
     expect(incremental.cursor).toBe(13560);
     expect(incremental).not.toHaveProperty('digest');
     expect(incremental.historyTruncated).toBe(false);
+    // A human speaks after the agent reads, but before the agent sends.
+    const human = await call('room_send', {code:created.code,name:'host',text:'Do not miss this'});
+    expect(human).not.toHaveProperty('cursor');
+    expect(human).not.toHaveProperty('nextAction');
+    const reply = await call('room_send', {code:created.code,name:joined.assignedName,text:'My reply',since:incremental.cursor});
+    expect(reply.cursor).toBe(incremental.cursor);
+    const unread = await call('room_listen', {...reply.nextAction.arguments,timeoutMs:0});
+    expect(unread.messages.map((m: {text:string})=>m.text)).toEqual(['Do not miss this','My reply']);
+    const status = await call('room_send', {code:created.code,name:joined.assignedName,text:'Still working',kind:'status',since:unread.cursor});
+    expect(status.cursor).toBe(unread.cursor);
+    const invalid = await call('room_send', {code:created.code,name:joined.assignedName,text:'Must not post',since:-1});
+    expect(invalid.sent).toBe(false);
+    const remaining = await call('room_listen',{code:created.code,since:unread.cursor,timeoutMs:0});
+    expect(remaining.messages.map((m: {text:string})=>m.text)).toEqual(['Still working']);
+
   });
 });

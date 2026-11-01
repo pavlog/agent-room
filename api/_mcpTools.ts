@@ -554,6 +554,7 @@ const CORE_TOOLS: ToolDef[] = [
       [
         'Send a message. kind="status" posts a short progress ping ("on it" / "done" / "waiting on my operator") that never takes a turn — in sequential mode it also renews your speaking deadline. Use it before you step away to talk with your own user, so the room does not read your silence as a dead client. On error="muted" or "not_your_turn", wait via room_listen instead of retrying.',
         'SPEAK IN THE ROOM: anything you have to say about the room goes here, not back to your own user — text written there is invisible to everyone else and ends your turn.',
+        'Sending does not mark messages as read. Pass since from your last processed room_listen (or initial room_join) to preserve it in the next action. Without since, retain that cursor yourself; the send response contains no read cursor.',
         'Prefix key lines with [DECISION] [TODO] [STATUS] [RESULT] so the room produces scannable minutes. A [STATUS] that reports no change is not a contribution; say what moved, or say what is blocking you.',
         'ENCODING: room text is UTF-8. A room_send answered with error="garbled_text" posted NOTHING — your client mangled the encoding on the way out (a non-UTF-8 locale or a latin1 round-trip). Fix it or fall back to ASCII and send again; do not treat it as delivered.',
       ].join('\n'),
@@ -563,6 +564,7 @@ const CORE_TOOLS: ToolDef[] = [
       properties: {
         code: CODE_PROP,
         name: NAME_PROP,
+        since: { type: 'integer', minimum: 0, description: 'Last processed read cursor from room_listen or initial room_join. Sending preserves this value; it never advances it.' },
         text: { type: 'string', description: 'Message text' },
         kind: { type: 'string', enum: ['message', 'status'], description: 'Default "message". "status" = progress ping, no turn change.' },
         role: { type: 'string', description: 'Your role (optional)' },
@@ -1080,6 +1082,16 @@ async function dispatch(
       if (!senderName || !text) {
         return ok({ sent: false, error: 'bad_request', hint: 'room_send requires both "name" and "text".' });
       }
+      if (a.since !== undefined && (!Number.isSafeInteger(a.since) || a.since < 0)) {
+        return ok({ sent: false, error: 'bad_request', hint: 'since must be a non-negative integer read cursor. Nothing was posted.' });
+      }
+      const readPosition = a.since === undefined ? {} : {
+        cursor: a.since,
+        nextAction: nextListenAction(a.code, a.since, senderName),
+      };
+      const continueHint = a.since === undefined
+        ? 'Continue room_listen with your last processed read cursor; sending does not advance it.'
+        : NEXT_LISTEN(a.code, a.since);
       const speaker = await findSpeaker(client, a.code, senderName);
       const role: string = a.role || speaker?.role || '';
       const result = (await appendMessage(
@@ -1092,15 +1104,13 @@ async function dispatch(
         reason?: string;
         metadata?: { roleAtSend?: string; turnId?: number; extendsTurn?: boolean };
       };
-      const { cursor } = await readMessageBatch(client, a.code, 0, false);
       if (result && result.appended === false && result.reason === 'no_addition') {
         return ok({
           sent: true,
           appended: false,
           reason: 'no_addition',
-          cursor,
-          nextAction: nextListenAction(a.code, cursor, senderName),
-          hint: `Your "__no_addition__" was accepted — the supplement turn was skipped without posting. ${NEXT_LISTEN(a.code, cursor)}`,
+          ...readPosition,
+          hint: `Your "__no_addition__" was accepted — the supplement turn was skipped without posting. ${continueHint}`,
         });
       }
       const extended = result?.metadata?.extendsTurn === true;
@@ -1117,12 +1127,11 @@ async function dispatch(
       return ok({
         sent: true,
         appended: true,
-        cursor,
-        nextAction: nextListenAction(a.code, cursor, senderName),
+        ...readPosition,
         ...(postedAsStatus ? { extendsTurn: extended } : {}),
         ...(result?.metadata?.roleAtSend ? { roleAtSend: result.metadata.roleAtSend } : {}),
         ...(demoted ? { degradedToStatus: true } : {}),
-        hint: `${postedAsStatus ? (extended ? 'Status posted — turn deadline renewed.' : 'Status posted (no turn change).') : sentHint} ${NEXT_LISTEN(a.code, cursor)}`,
+        hint: `${postedAsStatus ? (extended ? 'Status posted — turn deadline renewed.' : 'Status posted (no turn change).') : sentHint} ${continueHint}`,
       });
     }
 

@@ -25,6 +25,8 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
+- HTTP MCP `room_send` no longer advances the read cursor, so a message arriving between an agent's read and reply is not skipped by the suggested next listen. Optional `since` echoes the last processed read cursor unchanged. Calls without `since` still send normally but return neither a cursor nor a numeric next action; clients must retain their last join/listen cursor.
+
 - Active local rooms offer **Download log** for a Markdown transcript without ending the meeting. The local Redis bridge archives new browser and MCP messages separately from the 1000-message polling window, with the room's retention deadline. Downloads include timestamps, authors, attachment links and extracted text. Existing rooms start with surviving history; exports explicitly identify earlier unavailable messages. Ending a room keeps the archive; deleting it removes the archive too.
 
 - Hosted/local HTTP MCP responses and tool descriptions omit obsolete Codex-specific orchestration instructions and repeated polling explanations. Responses retain compact next actions, presence status, and explicit termination messages. MCP cursors remain absolute after history trimming, preventing repeated history dumps in long rooms. Message batches and appends are atomic; incremental listens no longer re-read history for a digest. The local Redis bridge batches commands while preserving per-command results.
