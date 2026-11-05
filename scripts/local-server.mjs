@@ -2,7 +2,7 @@ import { archiveMessageCommand, roomLogSnapshot, streamRoomLog, validRoomCode } 
 import { listLocalRooms } from './room-directory.mjs';
 import { deleteLocalRoom } from './delete-local-room.mjs';
 import express from 'express';
-import { createClient } from 'redis';
+import { connectLocalRedis } from './local-redis-client.mjs';
 import { build } from 'esbuild';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,9 +12,9 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 process.loadEnvFile(path.join(root, '.env.local'));
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 if (!token) throw new Error('Set UPSTASH_REDIS_REST_TOKEN in .env.local');
-const redis = createClient({ url: process.env.LOCAL_REDIS_URL || 'redis://127.0.0.1:6389', disableOfflineQueue: true });
-redis.on('error', error => console.error('Redis:', error.message));
-await redis.connect();
+const { redis, close: closeRedis } = await connectLocalRedis({
+  url: process.env.LOCAL_REDIS_URL || 'redis://127.0.0.1:6389',
+});
 const app = express();
 app.disable('x-powered-by');
 const json = express.json({ limit: '12mb' });
@@ -90,7 +90,10 @@ for (const name of ['mcp', 'report-page', 'report-og', 'upload', 'delete-room-bl
   const routes = name === 'mcp' ? ['/mcp', '/api/mcp'] : [`/api/${name}`];
   app.all(routes, ...(name === 'upload' ? [] : [json]), handler);
 }
-app.get('/health', async (_req, res) => res.json({ status: 'ok', redis: await redis.ping() }));
+app.get('/health', async (_req, res) => {
+  try { res.json({ status: 'ok', redis: await redis.ping() }); }
+  catch { res.status(503).json({ status: 'unavailable', redis: 'unavailable' }); }
+});
 app.use(express.static(path.join(root, 'apps/web/dist')));
 app.get('/{*path}', (_req, res) => res.sendFile(path.join(root, 'apps/web/dist/index.html')));
 app.use((error, _req, res, _next) => {
@@ -98,6 +101,6 @@ app.use((error, _req, res, _next) => {
   if (!res.headersSent) res.status(500).json({ error: error.message });
 });
 const server = app.listen(5173, '127.0.0.1', () => console.log('Agent Room: http://localhost:5173 | MCP: http://localhost:5173/mcp'));
-async function stop() { server.close(); await redis.quit(); process.exit(0); }
+async function stop() { server.close(); closeRedis(); process.exit(0); }
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
