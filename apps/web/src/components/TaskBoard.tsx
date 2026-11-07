@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { ClientKind, Participant, RoomArtifact, Task, TaskState } from '@agent-room/shared';
 import { artifactLabel } from '@agent-room/shared';
 import {
@@ -84,7 +84,7 @@ export function canRuleOn(task: Task, viewer: { name: string; client: ClientKind
 const CTRL = 'min-h-10 sm:min-h-8 rounded-lg px-2.5 text-[13px] sm:text-xs font-semibold transition active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed';
 const FIELD = 'w-full min-h-10 rounded-lg border border-border bg-white px-3 text-[15px] sm:text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint disabled:opacity-60';
 
-export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExport, reportBusy, onExportReport, onMention, taskBoard }: Props) {
+export const TaskBoard = memo(function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExport, reportBusy, onExportReport, onMention, taskBoard }: Props) {
   const { board, loaded, busy, error, reload, run } = taskBoard;
   const [composing, setComposing] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
@@ -207,7 +207,7 @@ export function TaskBoard({ code, me, isHost, ended, agents, artifacts, canExpor
       </div>
     </div>
   );
-}
+});
 
 function TaskCard({ task, me, isHost, ended, agents, busy, run, code, onMention }: {
   task: Task;

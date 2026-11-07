@@ -77,7 +77,7 @@ export function Room() {
   // Measure in an isolated off-screen textarea. Never collapse the live
   // composer: doing so relayouts the entire conversation on every keystroke.
   const measureRef = useRef<HTMLTextAreaElement | null>(null);
-  function autoGrow(el: HTMLTextAreaElement | null) {
+  const autoGrow = useCallback((el: HTMLTextAreaElement | null) => {
     if (!el) return;
     let measure = measureRef.current;
     if (!measure) {
@@ -97,7 +97,7 @@ export function Room() {
     const border = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
     const next = Math.min(Math.max(measure.scrollHeight + border, TEXTAREA_MIN_HEIGHT), TEXTAREA_MAX_HEIGHT);
     if (el.style.height !== `${next}px`) el.style.height = `${next}px`;
-  }
+  }, []);
   useEffect(() => {
     autoGrow(textareaRef.current);
   }, [text]);
@@ -375,7 +375,7 @@ export function Room() {
     t => canRuleOn(t, { name: self?.name ?? '', client: 'web' }, ended),
   ).length ?? 0;
 
-  async function handleExportReport() {
+  const handleExportReport = useCallback(async () => {
     if (!room) return;
     setReportBusy(true);
     try {
@@ -391,7 +391,7 @@ export function Room() {
     } finally {
       setReportBusy(false);
     }
-  }
+  }, [room, messages, code, navigate]);
 
   useEffect(() => {
     feedRef.current?.scrollTo(0, feedRef.current.scrollHeight);
@@ -406,6 +406,19 @@ export function Room() {
     mq.addEventListener('change', resetOnDesktop);
     return () => mq.removeEventListener('change', resetOnDesktop);
   }, []);
+
+  const appendText = useCallback((value: string) => {
+    setText(prev => {
+      if (!prev.trim()) return value;
+      return `${prev}\n${value}`;
+    });
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      autoGrow(textareaRef.current);
+    });
+  }, [setText, autoGrow]);
+
+  const roomAgents = useMemo(() => room?.participants.filter(p => p.client === 'cc') ?? [], [room?.participants]);
 
   if (error) return <div className="p-10 text-red-600">{error}</div>;
   // An agent handed /r/CODE lands here, not on Join: there is no stored
@@ -440,7 +453,6 @@ export function Room() {
   const replyMode = activeRoom.replyMode ?? 'open';
   const replyModeConfig = activeRoom.modeConfig;
   const canConfigureReplyMode = isHost && !ended;
-  const roomAgents = activeRoom.participants.filter(p => p.client === 'cc');
   const activeRoomAgents = roomAgents.filter(p => p.canSpeak !== false);
   const fallbackAgent = activeRoomAgents[0] ?? roomAgents[0];
   const selectedLeadAgentName = replyModeConfig?.leadAgentName ?? fallbackAgent?.name ?? '';
@@ -694,17 +706,6 @@ export function Room() {
       textarea.focus();
       textarea.setSelectionRange(start + inserted.length, start + inserted.length);
       autoGrow(textarea);
-    });
-  }
-
-  function appendText(value: string) {
-    setText(prev => {
-      if (!prev.trim()) return value;
-      return `${prev}\n${value}`;
-    });
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      autoGrow(textareaRef.current);
     });
   }
 
@@ -1318,9 +1319,9 @@ export function Room() {
                       style={{ height: TEXTAREA_MIN_HEIGHT, maxHeight: TEXTAREA_MAX_HEIGHT }}
                       className="w-full resize-none overflow-y-auto px-3.5 py-2.5 bg-surface-softer border border-border rounded-xl text-base sm:text-sm leading-relaxed outline-none focus:border-accent focus:ring-2 focus:ring-accent-tint"
                     />
-                    {text && <p className={`mt-1 text-xs ${draftSaved ? 'text-ink-muted' : 'text-amber-800'}`} role={draftSaved ? undefined : 'status'}>
+                    <p style={{ visibility: text ? 'visible' : 'hidden' }} className={`mt-1 text-xs ${draftSaved ? 'text-ink-muted' : 'text-amber-800'}`} role={text && !draftSaved ? 'status' : undefined}>
                       {draftSaved ? 'Text draft saved in this tab.' : 'Draft could not be saved. Keep this room open.'}
-                    </p>}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
                     <div className="flex items-center gap-1.5">

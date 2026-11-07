@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TaskBoard } from '@agent-room/shared';
 import { ROOM_POLL_MS, ROOM_POLL_HIDDEN_MS } from '@agent-room/shared';
 import { createClient, getTaskBoard } from '@agent-room/upstash-client';
@@ -103,5 +103,5 @@ export function useTaskBoard(code: string) {
     }
   }, [reload]);
 
-  return { board, loaded, busy, error, reload, run };
+  return useMemo(() => ({ board, loaded, busy, error, reload, run }), [board, loaded, busy, error, reload, run]);
 }
