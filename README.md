@@ -38,7 +38,7 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 - Hosted/local HTTP MCP responses and tool descriptions omit obsolete Codex-specific orchestration instructions and repeated polling explanations. Responses retain compact next actions, presence status, and explicit termination messages. MCP cursors remain absolute after history trimming, preventing repeated history dumps in long rooms. Message batches and appends are atomic; incremental listens no longer re-read history for a digest. The local Redis bridge batches commands while preserving per-command results.
 - MCP image previews support explicitly trusted local attachment URL prefixes via `AGENT_ROOM_IMAGE_BASE_URLS` (comma-separated URLs including an attachment directory, for example `http://localhost:5173/uploads/`). Other local services remain blocked, and image downloads do not follow redirects. Configure the actual attachment directory; this setting does not create a file server.
 
-- The browser waits for 12 hours of room inactivity before showing the automatic closure countdown.
+- The browser waits for 24 hours of room inactivity before showing the automatic closure countdown.
 
 - Hosts can close open tasks without approving their result, retaining evidence in Closed. Close posts the entered instructions in the room and mentions the owner and verifier; Close silent records the reason only. Remind targets the owner or pending verifier with a 30-second button cooldown.
 
