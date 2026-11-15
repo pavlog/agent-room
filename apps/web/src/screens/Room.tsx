@@ -555,8 +555,8 @@ export function Room() {
   }
 
   async function handleAskAgent(p: Participant) {
-    if (!canConfigureReplyMode || p.client !== 'cc') return;
-    if (replyMode === 'open') {
+    if (ended || p.client !== 'cc') return;
+    if (replyMode === 'open' || !isHost) {
       insertMention(`@${p.name} `);
       return;
     }
@@ -1267,7 +1267,7 @@ export function Room() {
                           onClick={() => { void handleAskAgent(agent); }}
                           title={muted
                             ? `${agent.name} is muted by the host and cannot speak, so it cannot be asked.`
-                            : replyMode === 'open'
+                            : replyMode === 'open' || !isHost
                               ? `Put "@${agent.name}" in the message box. Nothing is sent until you press Send.`
                               : `Hand ${agent.name} the next speaking slot in the current turn. Send a message first — there has to be a turn to grant.`}
                           className="shrink-0 min-h-10 rounded-full border border-accent-tint-border bg-accent-tint px-3.5 text-[13px] font-semibold text-accent transition hover:bg-accent-tint-border active:scale-[0.98] disabled:opacity-45 disabled:cursor-not-allowed"
