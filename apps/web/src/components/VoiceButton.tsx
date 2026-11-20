@@ -16,7 +16,19 @@ const SpeechRecognitionImpl: any =
     ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     : null;
 
+const LANGUAGE_KEY = 'agent-room.voice-language';
+
+function initialLanguage() {
+  try {
+    return localStorage.getItem(LANGUAGE_KEY) || navigator.language || 'en-US';
+  } catch {
+    return navigator.language || 'en-US';
+  }
+}
+
 export function VoiceButton({ onTranscript, disabled }: Props) {
+  const [language, setLanguage] = useState(initialLanguage);
+  const languages = [...new Set([...(navigator.languages || []), navigator.language, language].filter(Boolean))];
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
   const recognitionRef = useRef<any>(null);
@@ -47,7 +59,7 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
   function start() {
     if (disabled || recognitionRef.current) return;
     const recognition = new SpeechRecognitionImpl();
-    recognition.lang = navigator.language || 'zh-CN';
+    recognition.lang = language;
     recognition.continuous = false;
     recognition.interimResults = true;
 
@@ -103,6 +115,24 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
 
   return (
     <>
+      <select
+        aria-label="Voice input language"
+        title="Choose the language you will dictate in. Your choice is saved in this browser."
+        value={language}
+        disabled={disabled || listening}
+        onChange={event => {
+          const value = event.target.value;
+          setLanguage(value);
+          try {
+            localStorage.setItem(LANGUAGE_KEY, value);
+          } catch {
+            // Keep the selection for this session when browser storage is unavailable.
+          }
+        }}
+        className="h-10 sm:h-9 max-w-28 rounded-lg border border-border bg-surface-softer px-2 text-xs text-ink-soft disabled:opacity-50"
+      >
+        {languages.map(code => <option key={code} value={code}>{code}</option>)}
+      </select>
       <button
         type="button"
         disabled={disabled}
