@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 interface Props {
-  /** Called once with the final recognized transcript when the user stops or
-   *  the recognizer ends. Caller decides how to merge into the input field. */
+  /** Called with each newly confirmed phrase during recognition. Caller decides how to merge into the input field. */
   onTranscript: (text: string) => void;
   disabled?: boolean;
 }
@@ -31,6 +30,7 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
   const languages = [...new Set([...(navigator.languages || []), navigator.language, language].filter(Boolean))];
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState('');
+  const [status, setStatus] = useState('');
   const recognitionRef = useRef<any>(null);
   const transcriptRef = useRef(onTranscript);
   transcriptRef.current = onTranscript;
@@ -39,6 +39,7 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
     if (disabled) {
       setListening(false);
       setInterim('');
+      setStatus('');
     }
     return () => {
       const recognition = recognitionRef.current;
@@ -63,36 +64,54 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
     recognition.continuous = false;
     recognition.interimResults = true;
 
-    let finalText = '';
+    let receivedText = false;
+    let failed = false;
+    let nextResult = 0;
+    recognition.onstart = () => {
+      if (recognitionRef.current === recognition) setStatus('Listening…');
+    };
+    recognition.onspeechstart = () => {
+      if (recognitionRef.current === recognition) setStatus('Speech detected. Recognizing…');
+    };
 
     recognition.onresult = (event: any) => {
       if (recognitionRef.current !== recognition) return;
       let interimText = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      let finalText = '';
+      for (let i = nextResult; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
           finalText += result[0].transcript;
+          nextResult = i + 1;
         } else {
           interimText += result[0].transcript;
         }
+      }
+      if (finalText.trim()) {
+        receivedText = true;
+        transcriptRef.current(finalText.trim());
       }
       setInterim(interimText);
     };
 
     recognition.onerror = (event: any) => {
       if (recognitionRef.current !== recognition) return;
-      // 'no-speech' / 'aborted' are normal user paths (silent click, manual stop) — silent.
-      if (event.error && event.error !== 'no-speech' && event.error !== 'aborted') {
-        import('./Toast.js').then(({ showToast }) => {
-          showToast(`Voice error: ${event.error}`);
-        });
-      }
+      failed = true;
+      const messages: Record<string, string> = {
+        'no-speech': 'No speech detected. Check your microphone and selected language.',
+        'audio-capture': 'Microphone unavailable. Check the browser microphone device.',
+        'not-allowed': 'Microphone or speech recognition permission denied. Check site permissions.',
+        'service-not-allowed': 'The browser speech recognition service is unavailable or blocked.',
+        'network': 'Speech recognition connection failed. Check your network and try again.',
+        'language-not-supported': 'This browser cannot recognize the selected language.',
+        'aborted': 'Voice input cancelled.',
+      };
+      setStatus(messages[event.error] || 'Speech recognition failed. Please try again.');
     };
 
     recognition.onend = () => {
       if (recognitionRef.current !== recognition) return;
-      const text = finalText.trim();
-      if (text) transcriptRef.current(text);
+      if (!failed) setStatus(receivedText ? '' : 'No text recognized. Check your microphone and selected language, then try again.');
       setInterim('');
       setListening(false);
       recognitionRef.current = null;
@@ -101,9 +120,10 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
     try {
       recognitionRef.current = recognition;
       setListening(true);
+      setStatus('Starting microphone…');
       recognition.start();
     } catch {
-      // Some browsers throw if start() is called twice in quick succession.
+      setStatus('Could not start speech recognition. Please try again.');
       recognitionRef.current = null;
       setListening(false);
     }
@@ -114,7 +134,7 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
   }
 
   return (
-    <>
+    <div className="relative flex items-center gap-1.5">
       <select
         aria-label="Voice input language"
         title="Choose the language you will dictate in. Your choice is saved in this browser."
@@ -152,11 +172,11 @@ export function VoiceButton({ onTranscript, disabled }: Props) {
           <path d="M4 7.5a4 4 0 0 0 8 0M8 11.5V14" />
         </svg>
       </button>
-      {listening && interim && (
-        <div className="absolute left-3 right-3 -top-7 px-3 py-1 bg-accent-tint text-accent-deep text-[11px] italic rounded-full shadow-sm truncate pointer-events-none">
-          {interim}
+      {(interim || status) && (
+        <div role="status" className="absolute bottom-full left-0 mb-2 w-64 max-w-[75vw] px-3 py-2 bg-accent-tint text-accent-deep text-xs rounded-lg shadow-sm pointer-events-none">
+          {interim || status}
         </div>
       )}
-    </>
+    </div>
   );
 }
