@@ -1298,8 +1298,8 @@ export function Room() {
                   </button>
                   </>)}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="relative flex-1 min-w-0">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                  <div className="relative min-w-0">
                     <textarea
                       ref={textareaRef}
                       value={text}
@@ -1323,8 +1323,8 @@ export function Room() {
                       {draftSaved ? 'Text draft saved in this tab.' : 'Draft could not be saved. Keep this room open.'}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
-                    <div className="flex items-center gap-1.5">
+                  <div className="contents">
+                    <div className="col-span-2 row-start-2 flex items-center gap-1.5">
                       <VoiceButton
                         onTranscript={(t) => setText(prev => prev.trim() ? `${prev.trim()} ${t}` : t)}
                         disabled={ended}
@@ -1353,7 +1353,7 @@ export function Room() {
                       onClick={send}
                       disabled={sending || attachBusy || (!text.trim() && attachments.length === 0)}
                       title="Send this message to the room. Everyone in the room sees it, and it becomes part of the transcript that gets exported — keep keys and passwords out of it."
-                      className="min-h-[40px] sm:min-h-[36px] min-w-[78px] sm:min-w-[64px] bg-accent text-white px-5 sm:px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5"
+                      className="col-start-2 row-start-1 min-h-[42px] min-w-[78px] sm:min-w-[64px] bg-accent text-white px-5 sm:px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition shadow-sm flex items-center justify-center gap-1.5"
                     >
                       <span>{sending ? 'Sending…' : attachBusy ? 'Uploading…' : 'Send'}</span>
                       <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor" aria-hidden="true">
