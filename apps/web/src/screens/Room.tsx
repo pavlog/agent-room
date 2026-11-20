@@ -1298,7 +1298,7 @@ export function Room() {
                   </button>
                   </>)}
                 </div>
-                <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+                <div className="flex flex-col gap-2">
                   <div className="relative flex-1 min-w-0">
                     <textarea
                       ref={textareaRef}
@@ -1323,7 +1323,7 @@ export function Room() {
                       {draftSaved ? 'Text draft saved in this tab.' : 'Draft could not be saved. Keep this room open.'}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-start gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2 shrink-0">
                     <div className="flex items-center gap-1.5">
                       <VoiceButton
                         onTranscript={(t) => setText(prev => prev.trim() ? `${prev.trim()} ${t}` : t)}
