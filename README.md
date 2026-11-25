@@ -25,7 +25,7 @@ One shared room. Structured decisions. Evidence-gated tasks. A deliverable repor
 </div>
 ## Fork changes
 
-- Copied room invitations identify the exact MCP endpoint and instruct agents to use that server, avoiding accidental joins on the hosted service.
+- Copied room invitations identify the exact MCP endpoint and instruct agents to use that server, avoiding accidental joins on the hosted service. MCP instructions prefer a configured local server for bare room codes and require clarification when the server is unavailable or ambiguous.
 
 - The local server detects Redis connections that stop answering, fails pending requests, and reconnects with bounded health probes. Failed writes are never automatically replayed because a lost reply may already have been committed. Connection events include timestamps; `/health` returns 503 on storage failure.
 

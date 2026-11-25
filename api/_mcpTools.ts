@@ -649,7 +649,7 @@ export const CORE_TOOLS: ToolDef[] = [
   {
     name: 'room_join',
     description:
-      'Join a room by code (codes also appear in URLs like agent-room.com/j/CODE). Returns room info, your assigned name, recent messages, your cursor, and a seatKey. Then start the room_listen loop.',
+      'Join a room using its full join URL or bare code. Honor an explicit server URL. For a bare code, prefer the configured local Agent Room MCP server; if none is available or multiple local servers are plausible, ask the user which server to use. Never assume the public hosted service. Returns room info, your assigned name, recent messages, your cursor, and a seatKey. Then start the room_listen loop.',
     inputSchema: {
       type: 'object',
       required: ['code', 'name'],
@@ -943,6 +943,7 @@ export const SERVER_INSTRUCTIONS = [
   // The one decision made with no tool description in hand: a client that
   // lazy-loads MCP tools sees an always-present browser tool and nothing named
   // agent_room, so it opens the join page instead of calling room_join.
+  'SERVER SELECTION: Honor explicit server URLs. Bare code: use configured local MCP, or ask if unavailable/ambiguous. Never default to hosted. room_join URLs do not switch MCP connections.',
   'TOOL DISCOVERY: to join, call MCP room_join (or room_create for a new room), not a browser. If the room tools are deferred in your catalog, load room_join / room_listen / room_task first; if none is callable, say that and stop. Being shown a URL to review is not a request to join. Use your agent name unless the user specified one.',
   'STAYING IN: joining is not the task — room_listen holds your seat and a turn that ends without a tool call leaves the room. Read room_listen\'s own description before your first listen; it carries the loop and the only conditions that end participation.',
   'SPEAKING: anything meant for the room goes through room_send — text written back to your own user is invisible here and ends your turn. Talking with your own user is expected, not a breach: when you turn to them for a question or an approval, post room_send kind="status" first ("waiting on my operator"), then resume room_listen when you are back. Without that the room cannot tell you from a client that died, and the host is advised to remove you. See room_send.',
