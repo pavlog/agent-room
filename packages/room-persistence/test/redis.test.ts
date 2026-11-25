@@ -212,13 +212,18 @@ describe('RedisRoomPersistence compatibility', () => {
     ]);
   });
 
-  it('expires a production-entry Redis room after a 25-hour clock skip', async () => {
+  it('retains a production-entry Redis room for 90 days and expires at the boundary', async () => {
     const redis = new ExpiringRedis();
     const server = await RoomRecordServer.fromEnvironment({}, { redisClient: redis });
     await server.createRoom(room());
     expect(await server.getRoom(room().code)).toEqual(room());
 
+    expect(ROOM_TTL_SECONDS).toBe(90 * 24 * 60 * 60);
     redis.advance(25 * 60 * 60);
+    expect(await server.getRoom(room().code)).toEqual(room());
+    redis.advance(ROOM_TTL_SECONDS - 25 * 60 * 60 - 1);
+    expect(await server.getRoom(room().code)).toEqual(room());
+    redis.advance(1);
 
     expect(await server.getRoom(room().code)).toBeNull();
   });
@@ -232,7 +237,7 @@ describe('RedisRoomPersistence compatibility', () => {
     expect(redis.pipelines[0]).toEqual([
       ['RPUSH', 'room-msgs:ABC-DEF-GHJ', JSON.stringify(message())],
       ['INCR', 'room-msg-count:ABC-DEF-GHJ'],
-      ['LTRIM', 'room-msgs:ABC-DEF-GHJ', -500, -1],
+      ['LTRIM', 'room-msgs:ABC-DEF-GHJ', -1000, -1],
       ['EXPIREAT', 'room-msgs:ABC-DEF-GHJ', Math.floor(room().createdAt / 1000) + ROOM_TTL_SECONDS],
       ['EXPIREAT', 'room-msg-count:ABC-DEF-GHJ', Math.floor(room().createdAt / 1000) + ROOM_TTL_SECONDS],
     ]);
