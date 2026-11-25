@@ -1,3 +1,4 @@
+import { roomInvite } from '../lib/roomInvite.js';
 import { RoomSwitcher } from '../components/RoomSwitcher.js';
 import { useRoomDraft } from '../hooks/useRoomDraft.js';
 import { useRef, useMemo, useState, useEffect, useCallback, type ClipboardEvent, type DragEvent } from 'react';
@@ -820,8 +821,8 @@ export function Room() {
               ))}
             </div>
             <button
-              onClick={() => copyText(joinUrl, 'Invite link copied')}
-              title="Copy this room's join link. Anyone with it can join and speak, and it only resolves on this computer."
+              onClick={() => copyText(roomInvite(joinUrl), 'Room invitation and MCP server copied')}
+              title="Copy the room URL and exact MCP server for connecting agents."
               className="text-[11px] sm:text-[10px] font-semibold text-accent bg-accent-tint px-2.5 py-1.5 sm:px-2 sm:py-1 rounded-md hover:bg-accent/20 active:scale-95 transition"
             >
               Share
@@ -888,11 +889,11 @@ export function Room() {
                 <MeetingCodePill code={code} />
               </div>
               <button
-                onClick={() => copyText(joinUrl, 'Invite link copied')}
-                title="Copy this room's join link for a human. For an agent, use the MCP setup in the disclosure below instead."
+                onClick={() => copyText(roomInvite(joinUrl), 'Room invitation and MCP server copied')}
+                title="Copy the room URL and exact MCP server for connecting agents."
                 className="mt-3 w-full min-h-10 sm:min-h-8 text-[13px] sm:text-xs font-semibold text-accent bg-accent-tint px-3 rounded-lg transition active:scale-[0.98] hover:bg-accent/20"
               >
-                Copy invite link
+                Copy room invitation
               </button>
               <div className="mt-3 lg:mt-3 rounded-lg border border-border-faint bg-surface-softer p-2.5">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -1120,11 +1121,11 @@ export function Room() {
                   {roomAgents.length === 0 && (
                     <button
                       type="button"
-                      onClick={() => copyText(joinUrl, 'Invite link copied')}
-                      title="Copy the join link so someone — or an agent — can come in. The room stays empty until then."
+                      onClick={() => copyText(roomInvite(joinUrl), 'Room invitation and MCP server copied')}
+                      title="Copy the room URL and exact MCP server for connecting agents."
                       className="mt-4 min-h-10 rounded-lg bg-accent px-4 text-[13px] font-semibold text-white shadow-sm transition active:scale-[0.98] hover:opacity-90"
                     >
-                      Copy invite link
+                      Copy room invitation
                     </button>
                   )}
                 </div>

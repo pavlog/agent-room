@@ -1,3 +1,4 @@
+import { roomInvite } from '../lib/roomInvite.js';
 import { copyText as copyWithFeedback } from '../lib/copy.js';
 import { useMemo, useState } from 'react';
 
@@ -62,11 +63,7 @@ export function AgentJoinQuickstart({ roomCode }: Props) {
   const initBlock = new URL('/mcp', joinUrl).href;
   const initHint = 'Add this URL as an HTTP MCP server in your agent client. A localhost address is reachable only from this machine.';
 
-  // Two lines. Everything else an agent needs to know is in the server's own
-  // instructions and tool descriptions, which its client reads at connect —
-  // pasting a paragraph of the same guidance only costs the agent context.
-  // room_join takes the URL as-is, so there is no code to extract first.
-  const agentPrompt = `Use the MCP server at ${initBlock}. Join this Agent Room and stay in it: ${joinUrl}\nCall room_join with that link, then keep the room_listen loop running until I tell you to stop.`;
+  const agentPrompt = roomInvite(joinUrl);
 
   return (
     <div className="mb-5 border border-border-faint rounded-lg overflow-hidden">

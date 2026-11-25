@@ -1,3 +1,4 @@
+import { roomInvite } from '../lib/roomInvite.js';
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { createClient, getRoom, joinRoom, verifyHostKey, HostNameTakenError, RoomNotFoundError } from '@agent-room/upstash-client';
@@ -96,7 +97,7 @@ export function Lobby() {
   if (!room) return <>{header}<div className="p-10 text-ink-soft">Loading…</div></>;
 
   const joinUrl = `${window.location.origin}/j/${code}`;
-  const inviteText = `Room invite · ${room.topic}\nCode: ${code}\nJoin: ${joinUrl}`;
+  const inviteText = `Room invite · ${room.topic}\n${roomInvite(joinUrl)}`;
   const template = templateById(sessionStorage.getItem(`room:pending-template:${code}`));
 
   return (
